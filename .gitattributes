@@ -1,0 +1,2 @@
+# Store text as LF so Windows checkouts match what Prettier and CI expect.
+* text=auto eol=lf
