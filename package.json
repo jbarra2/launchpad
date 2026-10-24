@@ -1,0 +1,41 @@
+{
+  "name": "launchpad",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "A pad where project ideas are assembled before you build them",
+  "engines": {
+    "node": "24.x"
+  },
+  "workspaces": [
+    "packages/shared",
+    "apps/api",
+    "apps/web"
+  ],
+  "scripts": {
+    "check:public": "node scripts/check-public.mjs",
+    "pretypecheck": "npm run build -w @launchpad/shared",
+    "typecheck": "npm run typecheck --workspaces --if-present && tsc -p tsconfig.json",
+    "lint": "eslint . --max-warnings 0",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "test": "vitest run",
+    "build": "npm run build --workspaces --if-present",
+    "verify": "npm run check:public && npm run typecheck && npm run lint && npm run format:check && npm test"
+  },
+  "devDependencies": {
+    "@babel/core": "^8.0.9",
+    "@babel/eslint-parser": "^8.0.7",
+    "@babel/preset-react": "^8.0.1",
+    "@babel/preset-typescript": "^8.0.7",
+    "@eslint/js": "^9.39.5",
+    "@types/node": "^24",
+    "eslint": "^9.39.5",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-jsx-a11y": "^6.10.2",
+    "globals": "^17.13.0",
+    "prettier": "^3.9.10",
+    "typescript": "^7.0.2",
+    "vitest": "^4.1.12"
+  }
+}

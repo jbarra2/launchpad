@@ -26,4 +26,5 @@ Personal terms (your name, emails, the private project's name) go in `.public-ch
 ## Environment
 
 - Secrets live in the environment. `.env` stays untracked, and `.env.example` stays tracked with every new variable name added to it.
+- Each deployment (local, any demo, production) has its own database, its own `BETTER_AUTH_SECRET`, and its own `CREDENTIAL_KEY`. Never reuse one across them.
 - The app must start from `.env.example`, a seed of fictional data, and an account created through the app.

@@ -2,7 +2,7 @@
 
 A pad where project ideas are assembled before you build them. A new idea starts as the base of a rocket. Each session with the chat adds another part, and the plan stays saved. When you are ready to start developing, you launch it.
 
-**Status:** planning. The build runs from 2026-10-22 to 2026-10-24, and this repository holds the plan until the first code lands in Sprint 2.
+**Status:** building. The build runs from 2026-10-22 to 2026-10-24. The plan is in `docs/`, and the checks that every later sprint is held to are in place. The app itself arrives in Sprint 2b.
 
 ## How it will work
 
@@ -27,6 +27,13 @@ npm workspaces on Node 24:
 - [docs/DEVELOPMENT_WORKFLOW.md](docs/DEVELOPMENT_WORKFLOW.md): how the work is reviewed, committed, and closed out each day.
 - [LOG.md](LOG.md): a running record of what was asked and what changed.
 
+## Checks
+
+Use Node 24 (see `.nvmrc`). Run `npm install` once, then:
+
+- `npm run verify` runs the public-repo check, the type check, lint, the format check, and the tests.
+- `npm run build` builds the workspaces.
+
 ## Running it
 
-The app code arrives in Sprint 2. The setup steps will be added here then.
+The app arrives in Sprint 2b. The quick start will be added here then.

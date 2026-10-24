@@ -17,13 +17,15 @@ This app holds people's project ideas and their Claude API keys, and the reposit
 
 - Deny by default. Every route needs a session except `/health` and `/api/auth/*`, and each exception is deliberate.
 - Every query for a rocket, part, session, message, key, or usage row is scoped to the signed-in user. Another user's id gets **404**, not 403, and a test must prove it.
+- The signed-in user comes from the session and nowhere else. No header, query value, or body field chooses whose data a request touches.
+- Load a rocket or a session through one shared helper that takes the user's id and throws 404. Do not write the ownership check again in each route.
 - Hiding a control is not enough. The API refuses the action before the body is trusted, and a test shows the refusal. A launched rocket refuses edits with 409.
 
 ## Data
 
 - Validate every write with the shared Zod schemas, and give every text field a size cap.
 - Use parameterised queries only. Prisma's query methods are parameterised. Raw SQL uses the tagged template, never string building.
-- Filter and cap in the database. Never load a table and slice it in code.
+- Filter, sort, and cap in the database. Never load a table and slice it in code.
 - A part and its closing session are written in one transaction. So are a rocket and its Engine.
 
 ## Claude calls

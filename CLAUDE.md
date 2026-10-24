@@ -18,7 +18,7 @@ The three-day build runs from 2026-10-22 to 2026-10-24. `docs/SPRINTS.md` has th
 
 ## Commands
 
-`npm run verify` exists from Sprint 2a, `npm run dev` from Sprint 2b, and the database commands from Sprint 3. Until then the repository holds documents only.
+`npm run verify` and `npm run build` exist from Sprint 2a, `npm run dev` from Sprint 2b, and the database commands from Sprint 3.
 
 - `npm run dev` runs shared, api and web together.
 - `npm run db:up` starts the dev database. `npm run db:test:up` starts the test database.

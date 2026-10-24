@@ -11,6 +11,8 @@ paths:
 - Announce changes that have no focus move: "Claude is thinking…", a new reply, a part attached, a key saved. Use `aria-live`, and do not move focus into the middle of a conversation.
 - Status is text, never colour alone. "3 of 6 parts" is words, not just a filled icon.
 - Navigation is `<nav aria-label>` with real links and `aria-current`. Do not build tablists from links.
+- Anything that goes to another page is a link, not a `<button>`, so the address can be bookmarked. Style the link as a button when it should look like one.
+- A table has `<th scope="col">` and a `<caption>`.
 - The rocket illustration is `role="img"` with an `aria-label` that lists the attached parts.
 - Phone, tablet, and desktop show the same actions. Do not hide a control behind hover or drop it at a narrow width.
 - Touch targets are at least 44×44 CSS pixels.

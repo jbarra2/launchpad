@@ -13,29 +13,29 @@ A full-stack web app for phone and desktop. Anyone can sign up with an email and
 
 ## Decisions
 
-| Topic            | Decision                                                                                                                                                                             |
-| ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Chat             | A built-in Claude chat, one rocket part per session                                                                                                                                  |
-| Accounts         | Public email and password sign-up. Verification and reset links are printed to the API console for now; a real email provider comes with hosting                                      |
-| Claude key       | Bring your own key. Stored encrypted on the server (AES-256-GCM), only the last 4 characters ever shown, checked when saved                                                           |
-| Model            | `claude-opus-5-5` by default. The user can pick `claude-sonnet-5-5` or `claude-haiku-5-5` in Settings                                                                                 |
-| Parts            | Six fixed parts, attached in order                                                                                                                                                   |
-| Phone chat       | A session opens as a full-screen chat. After **Attach part** the user lands back on the rocket and sees the part go on                                                                |
-| Launch output    | `PLAN.md` plus a kickoff prompt for a coding assistant, both built from the six parts with a template (no extra Claude call)                                                          |
-| Palette          | **Twilight**: indigo-black, white, and grey with a violet accent. The purple-to-blue gradient appears only on the rocket                                                               |
-| Theme            | Follows the device's light or dark setting. A manual toggle is a later phase                                                                                                         |
-| Claude's tone    | **Friendly coach**: one or two questions at a time, points out a gap once and gently, short replies                                                                                   |
-| Rocket art       | Flat, clean shapes: solid fills with a gradient, and dashed ghost outlines for missing parts                                                                                          |
-| First run        | An empty pad with a getting-started card. Nothing blocks writing parts by hand                                                                                                       |
-| Transcripts      | Kept, and shown read-only and collapsed under the part they produced. Deleted with the rocket or the account                                                                         |
-| Cost display     | A token count per session under the chat, and monthly totals by model in Settings. No dollar amounts                                                                                 |
-| Rebuilding       | A part older than an earlier part that was changed shows a quiet "May need review" note, computed from timestamps                                                                    |
-| Phone install    | A web app manifest and icons, so "Add to Home Screen" opens full screen. No service worker and no offline mode                                                                       |
-| Landing page     | A short pitch and a read-only sample rocket (fictional "Recipe Swap"), with its six parts and `PLAN.md`                                                                              |
-| Stack            | Express and Next with Prisma, Better Auth, and Zod. No OpenAPI spec for now: the Zod schemas in `packages/shared` are the contract                                                    |
-| Hosting          | Render is a later phase. It is documented below and the app is kept deploy-ready, but nothing paid is built                                                                           |
-| Paid model       | Later: a monthly subscription with included tokens on a platform key. Not built; every Claude call records its tokens now so the numbers exist                                        |
-| Scheduling       | Core first (Sprints 1–10). Sprint 11 is a stretch sprint for the sample landing, the token line and totals, past sessions, the review note, and the manifest. Sprint 12 finishes     |
+| Topic         | Decision                                                                                                                                                                         |
+| ------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Chat          | A built-in Claude chat, one rocket part per session                                                                                                                              |
+| Accounts      | Public email and password sign-up. Verification and reset links are printed to the API console for now; a real email provider comes with hosting                                 |
+| Claude key    | Bring your own key. Stored encrypted on the server (AES-256-GCM), only the last 4 characters ever shown, checked when saved                                                      |
+| Model         | `claude-opus-5-5` by default. The user can pick `claude-sonnet-5-5` or `claude-haiku-5-5` in Settings                                                                            |
+| Parts         | Six fixed parts, attached in order                                                                                                                                               |
+| Phone chat    | A session opens as a full-screen chat. After **Attach part** the user lands back on the rocket and sees the part go on                                                           |
+| Launch output | `PLAN.md` plus a kickoff prompt for a coding assistant, both built from the six parts with a template (no extra Claude call)                                                     |
+| Palette       | **Twilight**: indigo-black, white, and grey with a violet accent. The purple-to-blue gradient appears only on the rocket                                                         |
+| Theme         | Follows the device's light or dark setting. A manual toggle is a later phase                                                                                                     |
+| Claude's tone | **Friendly coach**: one or two questions at a time, points out a gap once and gently, short replies                                                                              |
+| Rocket art    | Flat, clean shapes: solid fills with a gradient, and dashed ghost outlines for missing parts                                                                                     |
+| First run     | An empty pad with a getting-started card. Nothing blocks writing parts by hand                                                                                                   |
+| Transcripts   | Kept, and shown read-only and collapsed under the part they produced. Deleted with the rocket or the account                                                                     |
+| Cost display  | A token count per session under the chat, and monthly totals by model in Settings. No dollar amounts                                                                             |
+| Rebuilding    | A part older than an earlier part that was changed shows a quiet "May need review" note, computed from timestamps                                                                |
+| Phone install | A web app manifest and icons, so "Add to Home Screen" opens full screen. No service worker and no offline mode                                                                   |
+| Landing page  | A short pitch and a read-only sample rocket (fictional "Recipe Swap"), with its six parts and `PLAN.md`                                                                          |
+| Stack         | Express and Next with Prisma, Better Auth, and Zod. No OpenAPI spec for now: the Zod schemas in `packages/shared` are the contract                                               |
+| Hosting       | Render is a later phase. It is documented below and the app is kept deploy-ready, but nothing paid is built                                                                      |
+| Paid model    | Later: a monthly subscription with included tokens on a platform key. Not built; every Claude call records its tokens now so the numbers exist                                   |
+| Scheduling    | Core first (Sprints 1–10). Sprint 11 is a stretch sprint for the sample landing, the token line and totals, past sessions, the review note, and the manifest. Sprint 12 finishes |
 
 ### Defaults
 
@@ -51,14 +51,14 @@ A full-stack web app for phone and desktop. Anyone can sign up with an email and
 
 ### The rocket: six parts, built bottom to top
 
-| #   | Part          | Plan section     | What the session covers                                   | Made by                     |
-| --- | ------------- | ---------------- | --------------------------------------------------------- | --------------------------- |
-| 1   | **Engine**    | The idea         | Name, one-line pitch, why it matters                      | The new-idea form (no chat) |
-| 2   | **Fuel tank** | Problem & people | Who it is for, their problem, what they do today          | Chat session                |
-| 3   | **Body**      | Features         | v1 must-haves, later, out of scope                        | Chat session                |
-| 4   | **Avionics**  | Tech & data      | Stack, what data is stored, outside services              | Chat session                |
-| 5   | **Fins**      | Risks & unknowns | Hardest part, open questions, what could sink it          | Chat session                |
-| 6   | **Nose cone** | Build plan       | Milestones, first sprint, how you will know it is done    | Chat session                |
+| #   | Part          | Plan section     | What the session covers                                | Made by                     |
+| --- | ------------- | ---------------- | ------------------------------------------------------ | --------------------------- |
+| 1   | **Engine**    | The idea         | Name, one-line pitch, why it matters                   | The new-idea form (no chat) |
+| 2   | **Fuel tank** | Problem & people | Who it is for, their problem, what they do today       | Chat session                |
+| 3   | **Body**      | Features         | v1 must-haves, later, out of scope                     | Chat session                |
+| 4   | **Avionics**  | Tech & data      | Stack, what data is stored, outside services           | Chat session                |
+| 5   | **Fins**      | Risks & unknowns | Hardest part, open questions, what could sink it       | Chat session                |
+| 6   | **Nose cone** | Build plan       | Milestones, first sprint, how you will know it is done | Chat session                |
 
 - **Contents:** every part has a **summary** (up to 600 characters) and up to **8 points** (up to 200 characters each).
 - **Order:** parts are attached in order, and a session always targets the next missing part.
@@ -88,7 +88,9 @@ A full-stack web app for phone and desktop. Anyone can sign up with an email and
   - **`PLAN.md`**:
     ```md
     # Recipe Swap
+
     > Trade family recipes with people you trust.
+
     ## The idea · ## Problem & people · ## Features · ## Tech & data · ## Risks & unknowns · ## Build plan
     ```
   - **`KICKOFF.md`**: a ready-to-paste prompt for a coding assistant, filled in from the parts with a template and no Claude call:
@@ -96,17 +98,17 @@ A full-stack web app for phone and desktop. Anyone can sign up with an email and
 
 ### Screens
 
-| Route                                 | Who         | Contents                                                                                                                                                                                                                                                  |
-| ------------------------------------- | ----------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `/`                                   | signed out  | A short pitch, **Sign up** / **Sign in**, and the rocket illustration. **Sprint 11:** a sample finished rocket (read-only, fictional "Recipe Swap": the rocket, its six parts, and its `PLAN.md`), with no database. A signed-in user is sent to `/pad` |
-| `/sign-up`, `/sign-in`                | signed out  | Email and password (12–128 characters); sign-up also asks for a name                                                                                                                                                                                      |
-| `/check-email`                        | signed out  | "We sent a link to …", with a resend button                                                                                                                                                                                                               |
-| `/forgot-password`, `/reset-password` | signed out  | The password-reset link flow                                                                                                                                                                                                                              |
-| `/pad`                                | signed in   | Grid of rocket cards (mini rocket, name, "3 of 6 parts" or "Ready to launch"), **+ New idea**, then the **Launched** shelf. With no rockets, a **Getting started** card: create your first idea, optionally add a Claude key (with how to get one), or use "Write it myself" |
-| `/pad/new`                            | signed in   | Name (up to 80), pitch (up to 200), and an optional "why". Creates the rocket and its Engine                                                                                                                                                               |
-| `/rockets/[id]`                       | owner only  | The rocket and the parts list (the plan). **Sprint 11:** each part gets a collapsed **Past sessions** section with read-only transcripts (they are kept from the start). **Start / Continue session**, **Write it myself**, Launch, Export                  |
-| `/rockets/[id]/session`               | owner only  | The open session. **Phone:** a full-screen chat with a back arrow. **Desktop:** the rocket column on the left and the chat on the right. Attaching returns to `/rockets/[id]?attached=<kind>`, which plays the attach animation                            |
-| `/settings`                           | signed in   | API key, chat model, usage this month (Sprint 11), sign out, delete account                                                                                                                                                                               |
+| Route                                 | Who        | Contents                                                                                                                                                                                                                                                                     |
+| ------------------------------------- | ---------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `/`                                   | signed out | A short pitch, **Sign up** / **Sign in**, and the rocket illustration. **Sprint 11:** a sample finished rocket (read-only, fictional "Recipe Swap": the rocket, its six parts, and its `PLAN.md`), with no database. A signed-in user is sent to `/pad`                      |
+| `/sign-up`, `/sign-in`                | signed out | Email and password (12–128 characters); sign-up also asks for a name                                                                                                                                                                                                         |
+| `/check-email`                        | signed out | "We sent a link to …", with a resend button                                                                                                                                                                                                                                  |
+| `/forgot-password`, `/reset-password` | signed out | The password-reset link flow                                                                                                                                                                                                                                                 |
+| `/pad`                                | signed in  | Grid of rocket cards (mini rocket, name, "3 of 6 parts" or "Ready to launch"), **+ New idea**, then the **Launched** shelf. With no rockets, a **Getting started** card: create your first idea, optionally add a Claude key (with how to get one), or use "Write it myself" |
+| `/pad/new`                            | signed in  | Name (up to 80), pitch (up to 200), and an optional "why". Creates the rocket and its Engine                                                                                                                                                                                 |
+| `/rockets/[id]`                       | owner only | The rocket and the parts list (the plan). **Sprint 11:** each part gets a collapsed **Past sessions** section with read-only transcripts (they are kept from the start). **Start / Continue session**, **Write it myself**, Launch, Export                                   |
+| `/rockets/[id]/session`               | owner only | The open session. **Phone:** a full-screen chat with a back arrow. **Desktop:** the rocket column on the left and the chat on the right. Attaching returns to `/rockets/[id]?attached=<kind>`, which plays the attach animation                                              |
+| `/settings`                           | signed in  | API key, chat model, usage this month (Sprint 11), sign out, delete account                                                                                                                                                                                                  |
 
 Someone else's rocket or session returns 404, never 403.
 
@@ -205,9 +207,9 @@ Account
   | `--muted`    | `#A9A5C8` | `#5F5B7A` | 8.2 / 5.9 : 1 on bg                                |
   | `--accent`   | `#8B6CFF` | `#5B3FD9` | 5.2 / 6.1 : 1 on bg                                |
   | `--accent-2` | `#4F8CFF` |           | Gradient end; decoration only, never used for text |
-
   - Buttons are solid accent: dark text in dark mode (5.2:1) and white text in light mode (6.6:1).
   - Any new color pair added during the build gets the same check.
+
 - **The rocket:**
   - Flat, clean shapes in one inline SVG component, with one `<g>` per part. The fills use the `--accent` to `--accent-2` gradient.
   - A missing part is a dashed ghost outline, and a new part slides in with a CSS transform.
@@ -227,7 +229,7 @@ npm workspaces under the `@launchpad/*` scope, on Node 24 (`.nvmrc`):
 - **`apps/api`:** Express 5, helmet, Prisma 7 with `@prisma/adapter-pg` on Postgres 17, Better Auth, Zod 4, and `@anthropic-ai/sdk`. The contract is the Zod schemas in `packages/shared`, which validate every request body. There is no OpenAPI spec for now.
 - **`apps/web`:** Next 16 App Router, React 19, plain CSS with tokens in `globals.css` (no Tailwind).
 - **`packages/shared`:** Zod schemas and types (part kinds, limits, request bodies).
-- **Tests:** Vitest 3 projects. The API tests use supertest against a real test database. The web tests use Testing Library and `vitest-axe`. The Anthropic SDK is mocked in every test, so no test and no CI run touches the network.
+- **Tests:** Vitest 4 projects. The API tests use supertest against a real test database. The web tests use Testing Library and `vitest-axe`. The Anthropic SDK is mocked in every test, so no test and no CI run touches the network.
 - **Tooling:** ESLint 9 flat config with the Babel parser (TypeScript 7), Prettier, docker-compose, and GitHub Actions CI.
 
 ```
@@ -267,26 +269,26 @@ A raw-SQL migration, with a comment in the schema pointing to it, adds:
 
 Every route requires a session except `/health` and `/api/auth/*`. Every query is scoped by `userId`, and another user's rocket returns **404**, not 403.
 
-| Route                                            | Purpose                                                                                        |
-| ------------------------------------------------ | ---------------------------------------------------------------------------------------------- |
-| `GET /health`                                    | Liveness check, including a database `SELECT 1`                                                |
-| `/api/auth/*`                                    | Better Auth: sign-up, sign-in, verify, reset, sign-out, delete user                            |
-| `GET /api/me`                                    | User, model, key status (`none` / `valid` / `invalid` with the last 4)                         |
-| `PATCH /api/me/settings`                         | `{ model }`                                                                                    |
-| `PUT /api/me/api-key` · `DELETE /api/me/api-key` | Check with `models.list()`, then encrypt and store, returning `{ last4, status }` · remove      |
-| `GET /api/me/usage`                              | Tokens this month by model (Sprint 11)                                                         |
-| `GET /api/rockets?status=` · `POST /api/rockets` | List mine · create, with the Engine in the same transaction                                    |
-| `GET` / `PATCH` / `DELETE /api/rockets/:id`      | Read with parts and the open session · rename or re-pitch · delete                             |
-| `PUT /api/rockets/:id/parts/:kind`               | Write by hand or attach a part. 409 if out of order or the rocket is launched                  |
-| `POST /api/rockets/:id/sessions`                 | Open a session for the next part (or return the open one); Claude writes the opener            |
-| `GET /api/sessions/:id`                          | Messages plus this session's token total. Closed sessions are read-only                        |
-| `GET /api/rockets/:id/sessions?part=`            | Past sessions for a part: id, status, date (Sprint 11)                                         |
-| `POST /api/sessions/:id/messages`                | `{ text }`, returns Claude's reply (not streamed)                                              |
-| `POST /api/sessions/:id/draft`                   | `{ summary, points }`, not saved                                                               |
-| `POST /api/sessions/:id/close`                   | Discard                                                                                        |
-| `POST /api/rockets/:id/launch`                   | 409 unless all six parts are attached                                                          |
-| `GET /api/rockets/:id/plan.md`                   | `text/markdown`                                                                                |
-| `GET /api/rockets/:id/kickoff.md`                | `text/markdown`: the kickoff prompt with the plan                                              |
+| Route                                            | Purpose                                                                                    |
+| ------------------------------------------------ | ------------------------------------------------------------------------------------------ |
+| `GET /health`                                    | Liveness check, including a database `SELECT 1`                                            |
+| `/api/auth/*`                                    | Better Auth: sign-up, sign-in, verify, reset, sign-out, delete user                        |
+| `GET /api/me`                                    | User, model, key status (`none` / `valid` / `invalid` with the last 4)                     |
+| `PATCH /api/me/settings`                         | `{ model }`                                                                                |
+| `PUT /api/me/api-key` · `DELETE /api/me/api-key` | Check with `models.list()`, then encrypt and store, returning `{ last4, status }` · remove |
+| `GET /api/me/usage`                              | Tokens this month by model (Sprint 11)                                                     |
+| `GET /api/rockets?status=` · `POST /api/rockets` | List mine · create, with the Engine in the same transaction                                |
+| `GET` / `PATCH` / `DELETE /api/rockets/:id`      | Read with parts and the open session · rename or re-pitch · delete                         |
+| `PUT /api/rockets/:id/parts/:kind`               | Write by hand or attach a part. 409 if out of order or the rocket is launched              |
+| `POST /api/rockets/:id/sessions`                 | Open a session for the next part (or return the open one); Claude writes the opener        |
+| `GET /api/sessions/:id`                          | Messages plus this session's token total. Closed sessions are read-only                    |
+| `GET /api/rockets/:id/sessions?part=`            | Past sessions for a part: id, status, date (Sprint 11)                                     |
+| `POST /api/sessions/:id/messages`                | `{ text }`, returns Claude's reply (not streamed)                                          |
+| `POST /api/sessions/:id/draft`                   | `{ summary, points }`, not saved                                                           |
+| `POST /api/sessions/:id/close`                   | Discard                                                                                    |
+| `POST /api/rockets/:id/launch`                   | 409 unless all six parts are attached                                                      |
+| `GET /api/rockets/:id/plan.md`                   | `text/markdown`                                                                            |
+| `GET /api/rockets/:id/kickoff.md`                | `text/markdown`: the kickoff prompt with the plan                                          |
 
 For every new endpoint: add the Zod request schema to `packages/shared` first, then a success test and a failure test, then the handler.
 
@@ -312,6 +314,7 @@ All of it lives in `apps/api/src/lib/claude.ts`. Its interface is `reply`, `draf
   | Connection or timeout        | 504    | "Claude took too long; try again."                                                            |
 
   The SDK's own error message is never passed through.
+
 - **Usage:** every call writes a `UsageEvent` from `response.usage`.
 - **Caps:** 30 user messages per session, one reply in flight per session, and 60 Claude calls per user per hour, counted from `UsageEvent`.
 
@@ -357,12 +360,12 @@ All of it lives in `apps/api/src/lib/claude.ts`. Its interface is `reply`, `draf
 - **Database:** Render Postgres `basic-256mb`, reached by its internal URL.
 - **Deploys:** auto-deploy runs from `main` only, and `develop` only runs CI.
 
-|            | API (private service)                                                                                                            | Web                                                                                   |
-| ---------- | -------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------- |
-| Build      | `npm ci && npm run build -w @launchpad/shared && npm run prisma:generate -w @launchpad/api && npm run build -w @launchpad/api` | `npm ci && npm run build -w @launchpad/shared && npm run build -w @launchpad/web`    |
-| Pre-deploy | `npm run db:deploy -w @launchpad/api` (paid instances only)                                                                      |                                                                                       |
-| Start      | `npm run start -w @launchpad/api`                                                                                                | `next start` with **no `-p`**, so it uses `PORT`                                      |
-| Health     | `/health`                                                                                                                        |                                                                                       |
+|            | API (private service)                                                                                                          | Web                                                                               |
+| ---------- | ------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------- |
+| Build      | `npm ci && npm run build -w @launchpad/shared && npm run prisma:generate -w @launchpad/api && npm run build -w @launchpad/api` | `npm ci && npm run build -w @launchpad/shared && npm run build -w @launchpad/web` |
+| Pre-deploy | `npm run db:deploy -w @launchpad/api` (paid instances only)                                                                    |                                                                                   |
+| Start      | `npm run start -w @launchpad/api`                                                                                              | `next start` with **no `-p`**, so it uses `PORT`                                  |
+| Health     | `/health`                                                                                                                      |                                                                                   |
 
 **Environment variables:**
 

@@ -2,8 +2,8 @@
 
 How to build [MASTER_PLAN.md](MASTER_PLAN.md) in three days. The master plan is the source of truth for _what_ and _why_. This file is the source of truth for _in what order, and by when_.
 
-- Last updated: 2026-10-22
-- Progress: No sprint is complete yet. Sprint 1 is in progress.
+- Last updated: 2026-10-23
+- Progress: Sprint 1 is done (2026-10-22). Sprint 2a is in progress.
 - Deadline: done Saturday 2026-10-24.
 - Branching: sprint work lands on `develop`. `develop` runs CI and does not deploy. `main` is what a host would publish later. The user merges `develop` into `main` after Sprint 12.
 - Size: one sprint is one commit stop. If a sprint is sprawling, stop at the first **Done when** and move the rest to the next sprint or to the _Later_ list.
@@ -18,7 +18,7 @@ How to build [MASTER_PLAN.md](MASTER_PLAN.md) in three days. The master plan is 
 4. Implement until **Done when** is true. Run the **Verify** command.
 5. Review before staging, and again before the sprint is marked done. Re-read the code this sprint changed. Another user's data must be refused by the API, with a test for that refusal. `npm run verify` is green. Walk the sprint's paths. For UI, repeat at phone (390), tablet (768), and desktop (1280). The diff has no secrets, no local paths, and no private project name, and error bodies are a sentence a person can act on. Fix what you find in this sprint. Do not start the next one with a known bug.
 6. Add the sprint's entry to `LOG.md`, stage only the files that belong in the commit, and suggest a short message. The user commits and pushes.
-7. Only after the commit is in and the GitHub check on `develop` is green, mark the sprint done here. Sprint 1 has no check yet, so its commit is enough.
+7. A sprint is done once its commit is in and the GitHub check on `develop` is green. Sprint 1 has no check yet, so its commit is enough. Do not mark it done in a commit of its own. The next sprint's commit writes the dated status line, the progress line, and the row in the map below.
 
 Rules that apply to every sprint after Sprint 2a (when `npm run verify` exists). A red CI check is not merged.
 
@@ -35,21 +35,21 @@ Rules that apply to every sprint after Sprint 2a (when `npm run verify` exists).
 
 ## Map to the master plan
 
-| Sprint | When                  | Outcome                                          | Status      |
-| ------ | --------------------- | ------------------------------------------------ | ----------- |
-| 1      | Thu 2026-10-22        | The plan, rules, and log are in the repo         | In progress |
-| 2a     | Thu 2026-10-22        | The gate: verify and CI                          | Not started |
-| 2b     | Thu 2026-10-22        | App skeleton: API, web page, and the rewrite     | Not started |
-| 3      | Fri 2026-10-23        | Accounts API: sign-up, verify, reset, delete     | Not started |
-| 4      | Fri 2026-10-23        | Auth screens, tokens, and the signed-in shell    | Not started |
-| 5      | Fri 2026-10-23        | Rockets and parts API                            | Not started |
-| 6      | Fri 2026-10-23        | The pad and the rocket page, built by hand       | Not started |
-| 7      | Fri 2026-10-23        | Saved Claude key and model choice                | Not started |
-| 8      | Sat 2026-10-24        | Interview chat                                   | Not started |
-| 9      | Sat 2026-10-24        | Build the part: draft, edit, attach              | Not started |
-| 10     | Sat 2026-10-24        | Launch, export, delete account                   | Not started |
-| 11     | Sat 2026-10-24        | Stretch: five optional extras                    | Not started |
-| 12     | Sat 2026-10-24        | Finish: accessibility, phone pass, security pass | Not started |
+| Sprint | When           | Outcome                                          | Status      |
+| ------ | -------------- | ------------------------------------------------ | ----------- |
+| 1      | Thu 2026-10-22 | The plan, rules, and log are in the repo         | Done        |
+| 2a     | Thu 2026-10-22 | The gate: verify and CI                          | In progress |
+| 2b     | Thu 2026-10-22 | App skeleton: API, web page, and the rewrite     | Not started |
+| 3      | Fri 2026-10-23 | Accounts API: sign-up, verify, reset, delete     | Not started |
+| 4      | Fri 2026-10-23 | Auth screens, tokens, and the signed-in shell    | Not started |
+| 5      | Fri 2026-10-23 | Rockets and parts API                            | Not started |
+| 6      | Fri 2026-10-23 | The pad and the rocket page, built by hand       | Not started |
+| 7      | Fri 2026-10-23 | Saved Claude key and model choice                | Not started |
+| 8      | Sat 2026-10-24 | Interview chat                                   | Not started |
+| 9      | Sat 2026-10-24 | Build the part: draft, edit, attach              | Not started |
+| 10     | Sat 2026-10-24 | Launch, export, delete account                   | Not started |
+| 11     | Sat 2026-10-24 | Stretch: five optional extras                    | Not started |
+| 12     | Sat 2026-10-24 | Finish: accessibility, phone pass, security pass | Not started |
 
 Sprints 1–10 are the core. Sprint 11 runs only if Sprint 10 is done and green, and stops at the cutoff on Saturday. Sprint 12 runs either way.
 
@@ -59,7 +59,7 @@ Sprints 1–10 are the core. Sprint 11 runs only if Sprint 10 is done and green,
 
 ## Sprint 1 — Plan in the repo
 
-**Status: in progress.**
+**Status: done (2026-10-22).**
 
 **Phase: setup.** Write down the plan so every later sprint starts from a document, not from memory.
 
@@ -84,6 +84,8 @@ Only the Sprint 1 files appear. Read each document against `MASTER_PLAN.md`, and
 
 ## Sprint 2a — The gate
 
+**Status: in progress.**
+
 **Phase: setup.** The checks every later sprint is held to, built before any product code. Each workspace holds one trivial source file and one trivial test, which later sprints replace.
 
 ### Work
@@ -91,7 +93,7 @@ Only the Sprint 1 files appear. Read each document against `MASTER_PLAN.md`, and
 - npm workspaces `apps/api`, `apps/web`, and `packages/shared`, scope `@launchpad/*`. TypeScript 7 with one tsconfig per workspace. Shared builds to `dist/`, so it is built before api and web.
 - Prettier first: run `prettier --write` on the Sprint 1 documents, which were written by hand. The config is already in the repo.
 - ESLint 9 flat config with the Babel parser, and jsx-a11y as errors on `apps/web`.
-- Vitest 3 projects for api, web, and shared, with `fileParallelism: false`. The web project uses jsdom, Testing Library, and `vitest-axe`, with an axe smoke test on a trivial component. The API project uses supertest. The test database arrives in Sprint 3.
+- Vitest 4 projects for api, web, and shared, with `fileParallelism: false`. Vitest 3 carried advisories in its test runner, so the gate starts on 4. The web project uses jsdom, Testing Library, and `vitest-axe`, with an axe smoke test on a trivial component. jsdom cannot measure colour contrast, so that rule is off in tests and Sprint 4 checks the contrast of the colour tokens. The API project uses supertest. The test database arrives in Sprint 3.
 - `scripts/check-public.mjs` and its test, wired as `npm run check:public` and the first step of `verify`. It fails on an email address, a path into a user folder, a key or token shape, and a database, `.env`, or key file in a tracked or new file. It prints only the file, the line, and the rule. It does not flag words about accounts or plans, because this app is about them. Personal terms go in `.public-check.local`, which is listed in `.git/info/exclude`.
 - Root scripts `typecheck`, `lint`, `format`, `format:check`, `test`, `check:public`, and `build`, and `verify` = `check:public && typecheck && lint && format:check && test`. `build` runs each workspace's `build` in order, and the web build arrives in Sprint 2b.
 - `.git/info/exclude` gets `.public-check.local`, `apps/web/AGENTS.md`, and `apps/web/CLAUDE.md` (the last two are generated by `next dev` and stay untracked).
@@ -423,10 +425,10 @@ Outside the three days:
 
 ## Suggested calendar
 
-| Day                      | Sprints                                                                           |
-| ------------------------ | --------------------------------------------------------------------------------- |
-| Thu 2026-10-22 (evening) | 1, 2a, 2b                                                                          |
-| Fri 2026-10-23           | 3, 4, 5, 6, 7 (7 may slide to Saturday morning)                                   |
-| Sat 2026-10-24           | 8, 9, 10; then 11 until 3:00 pm; then 12 (starts by 3:00 pm at the latest)        |
+| Day                      | Sprints                                                                    |
+| ------------------------ | -------------------------------------------------------------------------- |
+| Thu 2026-10-22 (evening) | 1, 2a, 2b                                                                  |
+| Fri 2026-10-23           | 3, 4, 5, 6, 7 (7 may slide to Saturday morning)                            |
+| Sat 2026-10-24           | 8, 9, 10; then 11 until 3:00 pm; then 12 (starts by 3:00 pm at the latest) |
 
 If `npm run verify` is red at the end of a session, do not start the next sprint. Fix or revert.
