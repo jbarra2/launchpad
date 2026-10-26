@@ -2,8 +2,8 @@
 
 How to build [MASTER_PLAN.md](MASTER_PLAN.md) in three days. The master plan is the source of truth for _what_ and _why_. This file is the source of truth for _in what order, and by when_.
 
-- Last updated: 2026-10-23
-- Progress: Sprint 1 is done (2026-10-22). Sprint 2a is in progress.
+- Last updated: 2026-10-26
+- Progress: Sprints 1 (2026-10-22) and 2a (2026-10-23) are done. Sprint 2b is in progress.
 - Deadline: done Saturday 2026-10-24.
 - Branching: sprint work lands on `develop`. `develop` runs CI and does not deploy. `main` is what a host would publish later. The user merges `develop` into `main` after Sprint 12.
 - Size: one sprint is one commit stop. If a sprint is sprawling, stop at the first **Done when** and move the rest to the next sprint or to the _Later_ list.
@@ -38,8 +38,8 @@ Rules that apply to every sprint after Sprint 2a (when `npm run verify` exists).
 | Sprint | When           | Outcome                                          | Status      |
 | ------ | -------------- | ------------------------------------------------ | ----------- |
 | 1      | Thu 2026-10-22 | The plan, rules, and log are in the repo         | Done        |
-| 2a     | Thu 2026-10-22 | The gate: verify and CI                          | In progress |
-| 2b     | Thu 2026-10-22 | App skeleton: API, web page, and the rewrite     | Not started |
+| 2a     | Thu 2026-10-22 | The gate: verify and CI                          | Done        |
+| 2b     | Thu 2026-10-22 | App skeleton: API, web page, and the rewrite     | In progress |
 | 3      | Fri 2026-10-23 | Accounts API: sign-up, verify, reset, delete     | Not started |
 | 4      | Fri 2026-10-23 | Auth screens, tokens, and the signed-in shell    | Not started |
 | 5      | Fri 2026-10-23 | Rockets and parts API                            | Not started |
@@ -84,7 +84,7 @@ Only the Sprint 1 files appear. Read each document against `MASTER_PLAN.md`, and
 
 ## Sprint 2a — The gate
 
-**Status: in progress.**
+**Status: done (2026-10-23).**
 
 **Phase: setup.** The checks every later sprint is held to, built before any product code. Each workspace holds one trivial source file and one trivial test, which later sprints replace.
 
@@ -111,6 +111,8 @@ npm run verify && npm run build
 ---
 
 ## Sprint 2b — App skeleton
+
+**Status: in progress.**
 
 **Phase: setup.** The two apps start and talk to each other, with no product code.
 

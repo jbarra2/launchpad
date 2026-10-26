@@ -2,7 +2,7 @@
 
 A pad where project ideas are assembled before you build them. A new idea starts as the base of a rocket. Each session with the chat adds another part, and the plan stays saved. When you are ready to start developing, you launch it.
 
-**Status:** building. The build runs from 2026-10-22 to 2026-10-24. The plan is in `docs/`, and the checks that every later sprint is held to are in place. The app itself arrives in Sprint 2b.
+**Status:** building. The build runs from 2026-10-22 to 2026-10-24. The plan is in `docs/`, the checks that every later sprint is held to are in place, and the two apps start and talk to each other. Accounts come next.
 
 ## How it will work
 
@@ -36,4 +36,9 @@ Use Node 24 (see `.nvmrc`). Run `npm install` once, then:
 
 ## Running it
 
-The app arrives in Sprint 2b. The quick start will be added here then.
+1. Use Node 24 (see `.nvmrc`) and run `npm install`.
+2. Copy `.env.example` to `.env`. The skeleton starts with the defaults. Later sprints need more of the values, and `.env.example` says how to make each one.
+3. Run `npm run dev`. It builds the shared package, then starts it in watch mode beside the API and the web app.
+4. Open <http://localhost:3100>.
+
+The browser only talks to the web app on port 3100, which passes `/api/*` on to the API on port 4100. `http://localhost:3100/api/health` answers `{"ok":true}` when both are up. The API only listens to this machine, so it is reached through the web app. If the API's output says a port is busy or a setting is wrong, the rest of the run keeps going. Fix the problem, stop the run with Ctrl+C, and run `npm run dev` again. If you change `PORT`, change `API_INTERNAL_URL` to match.

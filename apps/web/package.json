@@ -4,11 +4,15 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
-    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "dev": "next dev -p 3100",
+    "build": "next build",
+    "start": "next start",
+    "typecheck": "next typegen && tsc -p tsconfig.json --noEmit",
     "test": "vitest run --config vitest.config.ts"
   },
   "dependencies": {
     "@launchpad/shared": "*",
+    "next": "^16.4.3",
     "react": "^19.3.1",
     "react-dom": "^19.3.1"
   },

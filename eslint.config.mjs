@@ -1,5 +1,6 @@
 import eslint from "@eslint/js";
 import babelParser from "@babel/eslint-parser";
+import nextPlugin from "@next/eslint-plugin-next";
 import jsxA11y from "eslint-plugin-jsx-a11y";
 import eslintConfigPrettier from "eslint-config-prettier";
 import globals from "globals";
@@ -55,6 +56,20 @@ export default [
       ...jsxA11y.configs.recommended.rules,
       // Links go through Next's Link component, which this rule does not understand.
       "jsx-a11y/anchor-is-valid": "off",
+    },
+  },
+  {
+    files: ["apps/web/**/*.{js,jsx,ts,tsx}"],
+    plugins: {
+      "@next/next": nextPlugin,
+    },
+    settings: {
+      next: {
+        rootDir: "apps/web/",
+      },
+    },
+    rules: {
+      ...nextPlugin.configs["core-web-vitals"].rules,
     },
   },
   eslintConfigPrettier,

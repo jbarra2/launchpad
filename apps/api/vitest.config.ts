@@ -13,6 +13,8 @@ export default defineConfig({
   test: {
     name: "api",
     environment: "node",
+    // Whatever the shell says, so that no test reads the developer's .env.
+    env: { NODE_ENV: "test" },
     fileParallelism: false,
     include: ["tests/**/*.test.ts"],
   },
