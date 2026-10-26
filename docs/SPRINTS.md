@@ -53,7 +53,7 @@ Rules that apply to every sprint after Sprint 2a (when `npm run verify` exists).
 
 Sprints 1–10 are the core. Sprint 11 runs only if Sprint 10 is done and green, and stops at the cutoff on Saturday. Sprint 12 runs either way.
 
-**Effort: xhigh** is reserved for the sprints that hold money, keys, or accounts: Sprints 3, 7, and 12. Those also get `/security-review`. Everything else runs at the default effort.
+**Effort: xhigh** is reserved for the sprints that hold money, keys, or accounts: Sprints 3, 7, and 12. Those get the full set of checks in `.claude/rules/ready-to-commit.md`, which includes `/security-review`. Everything else runs at the default effort.
 
 ---
 

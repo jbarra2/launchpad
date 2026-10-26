@@ -16,7 +16,7 @@ When there are real options, put the recommended one first with the reason in pa
 
 ## Full review
 
-At a natural break I stop new work for a full review of the whole codebase, committed on its own. One multi-reviewer round is enough. If it finds a real bug, fix it and prove the fix. Do not start another full round without asking, and say what another round would cover and roughly how long it would take.
+At a natural break I stop new work for a full review of the whole codebase, committed on its own. For ordinary code one multi-reviewer round is enough. If it finds a real bug, fix it and prove the fix, and say what another round would cover and roughly how long it would take before starting one. The parts that handle accounts, keys, or deleting data are different: their reviews repeat on their own until a round finds nothing High or Medium, at most 3 rounds, and then the assistant asks me. The assistant says how many agents and about how long before each round.
 
 ## What done means
 
@@ -25,7 +25,8 @@ A sprint is done when all of these are true:
 - The sprint's **Done when** is true.
 - `npm run verify` passes. Sprint 1 has no verify script, and its own check applies. From Sprint 2a on, `npm run verify` is part of done.
 - The sprint's commit is in and pushed, and the GitHub check on `develop` is green. Sprint 1 has no CI yet, so its commit alone is enough.
-- For UI sprints, the screen has been walked at phone (390), tablet (768), and desktop (1280) widths, including with the keyboard.
+- For UI sprints, the screen has been walked at phone (390), tablet (768), and desktop (1280) widths, including with the keyboard. The assistant does the walk in a real browser, so I do not have to run the app after every change.
+- The assistant has given me a Push check: what was verified and how, what was not, what still needs my own testing and why, and the residual risk. I test by hand only what it lists there, such as a real device, a real key or email provider, or how a screen looks and feels, and the assistant tells me in advance when a sprint has one.
 
 A function is not done until its screen is. I do not start the next sprint while the current check is red.
 
