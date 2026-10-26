@@ -1,6 +1,7 @@
 import { APP_NAME } from "@launchpad/shared";
 import { env } from "./config/env.js";
 import { createApp } from "./app.js";
+import { prisma } from "./lib/prisma.js";
 
 // Behind a host's own network only its proxy reaches the API, so production listens on every
 // interface. Anywhere else the API listens to this machine alone, so that nothing else on the
@@ -21,6 +22,8 @@ for (const signal of ["SIGINT", "SIGTERM"] as const) {
   process.on(signal, () => {
     // A Claude call in flight may take longer than a person wants to wait for a restart.
     setTimeout(() => process.exit(1), 10_000).unref();
-    server.close(() => process.exit(0));
+    server.close(() => {
+      void prisma.$disconnect().finally(() => process.exit(0));
+    });
   });
 }

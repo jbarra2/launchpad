@@ -152,3 +152,71 @@ instead of with the accounts work.
   address, and the built API and `next start` ran from `dist` and `.next`.
 - `npm run verify` and `npm run build` pass, with 184 tests (125 before). `npm audit` reports 0.
 - Marked the gate work done in `docs/SPRINTS.md` with this commit, as the workflow says.
+
+## 5. Accounts API (Claude Code)
+
+**Asked:**
+
+Continue from the last session, which meant building the accounts API: sign-up, email
+verification, password reset, and account deletion, with the database, tests, and CI to go with
+it. I approved the new packages (Better Auth, and Prisma with its database adapter), chose the
+latest Better Auth release, and chose that a reset link also goes to an account that never
+verified its address, with a finished reset counting as proof of the mailbox.
+
+**What came back / what changed:**
+
+- Database: a compose file with a development database on port 5442 and an in-memory test database
+  on 5443, both open to this machine only. Prisma 7 with the five tables Better Auth needs, the
+  first migration, and scripts to start, stop, migrate, and reset them.
+- Accounts: sign-up asks for a name, an email, and a password of 12 to 128 characters, and mails a
+  link that is printed in the API terminal for now. An unverified account cannot sign in, and a
+  try mails a fresh link. Following the link verifies the address and sends the person on to sign in,
+  and the link works through the web address. It signs nobody in, because a link that signed in
+  would hand whoever opened it the account it names. A reset link lasts 30 minutes, works once, ends every older
+  session, and also verifies an account that never was. Deleting an account asks for the password
+  and removes the person's sessions, accounts, and reset tokens. Sessions live in Postgres for 24
+  hours, renewed hourly, in an httpOnly cookie with the `launchpad.` prefix.
+- Security: only the Better Auth endpoints the app uses are reachable, and every other one is a 404
+  even when signed in. Every field has a size cap, a field the forms do not have is refused, names
+  and emails are stored trimmed, and a refusal is a sentence taken from the shared schemas. An auth
+  request over 32 kb, or with no declared length, is refused before anything reads it. Two sign-ups
+  for one new address at the same moment are taken in turn, so both answer like any repeated
+  sign-up. A path the app does not list is refused before Better Auth sees it, so it costs no
+  database row. A reset request has to name the reset page, which is the only page the token may
+  land on. No more than 5 link messages go to one address in 15 minutes, whatever the address of the
+  sender. Better Auth's own log lines print the message and leave out the error that comes with it.
+  Tokens are removed from every JSON body. Sign-up, sign-in, reset, verification
+  resend, and delete each have their own rate limit in the database. The address those limits count
+  comes from one header that the API sets itself and a client cannot, and the proxy-hop setting now
+  defaults to 0 because Next adds no hop. A repeated sign-up, a wrong password, and an unknown email
+  each look like the ordinary case. A change from another site is refused, and the mail transport
+  that prints links cannot start in production.
+- Every route under `/api` needs a session, checked before a body is read, with `GET /api/me`
+  returning only the id, name, and email. `/health` now asks the database a question.
+- Tests: they run against the real test database, which is migrated once and emptied before each
+  test, whatever tables exist, and only if the database is a local one named for this project's
+  tests. They were written first, and then every protection was broken on purpose, one at a time
+  (over 20 breakages), to prove that a test notices. The ones that did not fail were backed by a
+  second line of defence, and a stronger break was caught.
+- Two rounds of independent review of the diff, each a code review and a security review. The first
+  found that a verification link signed in whoever opened it, that unlisted sign-up fields were
+  stored and a name padded with spaces got past its cap, that an auth body of any size was read
+  before it was checked, that two simultaneous sign-ups showed whether an address was new, that the
+  tests could empty any database an environment variable named, and that the JSON parser ran before
+  the session check outside the API. The second found that a reset request without a landing page
+  made a dead link, that each unlisted auth path wrote a rate-limit row, that Better Auth's own
+  error log lines could carry details, that a production host could leave the proxy count unset,
+  that `NODE_ENV=test` outside the test runner would drop mail without a word, and that many
+  messages could be sent to one address from changing addresses. All were fixed, with a test for
+  each.
+- CI: a Postgres service, the one Prisma install step that runs a script on purpose, then
+  generating the client and applying migrations before verify and build. The Prisma command line
+  is pinned to 7.x, because npm's default is an 8.0 release candidate.
+- Found along the way: a badly typed web address setting reported only "Invalid URL", and a missing
+  password reported Zod's own wording. Both now name the setting or say what to enter, with a test.
+- Checked live through the web port with the real database: sign-up, the printed link, sign-in
+  refused before verifying, the link opened through Next (which verified and signed nobody in), a
+  sign-in after it, the cookie, `/api/me`, a refused extra field, a refused delete without the
+  password, a delete with it, and no rows left behind.
+- `npm run verify` and `npm run build` pass, with 367 tests (184 before). `npm audit` reports 0.
+- Marked the app skeleton work done in `docs/SPRINTS.md` with this commit, as the workflow says.

@@ -3,7 +3,7 @@
 How to build [MASTER_PLAN.md](MASTER_PLAN.md) in three days. The master plan is the source of truth for _what_ and _why_. This file is the source of truth for _in what order, and by when_.
 
 - Last updated: 2026-10-26
-- Progress: Sprints 1 (2026-10-22) and 2a (2026-10-23) are done. Sprint 2b is in progress.
+- Progress: Sprints 1 (2026-10-22), 2a (2026-10-23), and 2b (2026-10-26) are done. Sprint 3 is in progress.
 - Deadline: done Saturday 2026-10-24.
 - Branching: sprint work lands on `develop`. `develop` runs CI and does not deploy. `main` is what a host would publish later. The user merges `develop` into `main` after Sprint 12.
 - Size: one sprint is one commit stop. If a sprint is sprawling, stop at the first **Done when** and move the rest to the next sprint or to the _Later_ list.
@@ -39,8 +39,8 @@ Rules that apply to every sprint after Sprint 2a (when `npm run verify` exists).
 | ------ | -------------- | ------------------------------------------------ | ----------- |
 | 1      | Thu 2026-10-22 | The plan, rules, and log are in the repo         | Done        |
 | 2a     | Thu 2026-10-22 | The gate: verify and CI                          | Done        |
-| 2b     | Thu 2026-10-22 | App skeleton: API, web page, and the rewrite     | In progress |
-| 3      | Fri 2026-10-23 | Accounts API: sign-up, verify, reset, delete     | Not started |
+| 2b     | Thu 2026-10-22 | App skeleton: API, web page, and the rewrite     | Done        |
+| 3      | Fri 2026-10-23 | Accounts API: sign-up, verify, reset, delete     | In progress |
 | 4      | Fri 2026-10-23 | Auth screens, tokens, and the signed-in shell    | Not started |
 | 5      | Fri 2026-10-23 | Rockets and parts API                            | Not started |
 | 6      | Fri 2026-10-23 | The pad and the rocket page, built by hand       | Not started |
@@ -112,7 +112,7 @@ npm run verify && npm run build
 
 ## Sprint 2b — App skeleton
 
-**Status: in progress.**
+**Status: done (2026-10-26).**
 
 **Phase: setup.** The two apps start and talk to each other, with no product code.
 
@@ -134,6 +134,8 @@ npm run verify && npm run build
 ---
 
 ## Sprint 3 — Accounts API
+
+**Status: in progress.**
 
 **Effort: xhigh.** Sign-up is public, and a verification or reset link is a way into someone's account. It has to be right, not only working.
 

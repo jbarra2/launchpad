@@ -20,6 +20,22 @@ jobs:
     timeout-minutes: 10
     env:
       NEXT_TELEMETRY_DISABLED: "1"
+      # A database that exists only for this run and holds nothing real. The tests clear it.
+      TEST_DATABASE_URL: postgresql://launchpad:launchpad@localhost:5432/launchpad_test?schema=public
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: launchpad
+          POSTGRES_PASSWORD: launchpad
+          POSTGRES_DB: launchpad_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U launchpad -d launchpad_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -32,5 +48,12 @@ jobs:
       # their Linux binaries as packages, so none of them needs a script to run. A dependency that
       # does need one is added to this step on purpose.
       - run: npm ci --ignore-scripts
+      # The one install script that is run on purpose: Prisma downloads the engine that applies
+      # migrations in it. Nothing else in the tree needs a script.
+      - run: npm rebuild @prisma/engines
+      - run: npm run prisma:generate
+      - run: npm run db:deploy
+        env:
+          DATABASE_URL: ${{ env.TEST_DATABASE_URL }}
       - run: npm run verify
       - run: npm run build

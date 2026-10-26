@@ -29,16 +29,21 @@ npm workspaces on Node 24:
 
 ## Checks
 
-Use Node 24 (see `.nvmrc`). Run `npm install` once, then:
+Use Node 24 (see `.nvmrc`) and have Docker running. Run `npm install` once, then:
 
+- `npm run db:test:up` starts the test database on port 5443. It lives in memory and the tests clear it, so it never holds anything that matters. The tests need it.
 - `npm run verify` runs the public-repo check, the type check, lint, the format check, and the tests.
 - `npm run build` builds the workspaces.
 
 ## Running it
 
-1. Use Node 24 (see `.nvmrc`) and run `npm install`.
-2. Copy `.env.example` to `.env`. The skeleton starts with the defaults. Later sprints need more of the values, and `.env.example` says how to make each one.
-3. Run `npm run dev`. It builds the shared package, then starts it in watch mode beside the API and the web app.
-4. Open <http://localhost:3100>.
+1. Use Node 24 (see `.nvmrc`), have Docker running, and run `npm install`.
+2. Run `npm run db:up`. It starts the database on port 5442.
+3. Copy `.env.example` to `.env`, and set `BETTER_AUTH_SECRET` to a new secret. The file shows the command that makes one. The other values work as they are.
+4. Run `npm run db:migrate` to create the tables.
+5. Run `npm run dev`. It builds the shared package, then starts it in watch mode beside the API and the web app.
+6. Open <http://localhost:3100>.
 
-The browser only talks to the web app on port 3100, which passes `/api/*` on to the API on port 4100. `http://localhost:3100/api/health` answers `{"ok":true}` when both are up. The API only listens to this machine, so it is reached through the web app. If the API's output says a port is busy or a setting is wrong, the rest of the run keeps going. Fix the problem, stop the run with Ctrl+C, and run `npm run dev` again. If you change `PORT`, change `API_INTERNAL_URL` to match.
+There is no email provider yet. When you sign up, or ask for a password reset, the link is printed in the API's terminal output. Open it in the browser.
+
+The browser only talks to the web app on port 3100, which passes `/api/*` on to the API on port 4100. `http://localhost:3100/api/health` answers `{"ok":true}` when both are up and the API can reach its database. The API only listens to this machine, so it is reached through the web app. If the API's output says a port is busy or a setting is wrong, the rest of the run keeps going. Fix the problem, stop the run with Ctrl+C, and run `npm run dev` again. If you change `PORT`, change `API_INTERNAL_URL` to match. `npm run db:down` stops the database and keeps its data.

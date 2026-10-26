@@ -1,7 +1,8 @@
 import express, { type RequestHandler } from "express";
 import { badRequest, HttpError } from "../errors/http-error.js";
+import { MAX_BODY_BYTES, TOO_MUCH } from "./body-limit.js";
 
-const parseJson = express.json({ limit: "32kb" });
+const parseJson = express.json({ limit: MAX_BODY_BYTES });
 
 const UNREADABLE = "That request could not be read. Try again.";
 
@@ -12,7 +13,7 @@ const UNREADABLE = "That request could not be read. Try again.";
 function refusal(err: unknown): HttpError {
   const type = typeof err === "object" && err !== null && "type" in err ? err.type : undefined;
   if (type === "entity.too.large") {
-    return new HttpError(413, "That is too much to send at once. Shorten it and try again.");
+    return new HttpError(413, TOO_MUCH);
   }
   if (type === "encoding.unsupported" || type === "charset.unsupported") {
     return new HttpError(415, UNREADABLE);

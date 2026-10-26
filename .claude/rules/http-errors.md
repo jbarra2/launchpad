@@ -13,12 +13,18 @@ Use the `HttpError` helpers (`badRequest`, `notFound`, `conflict`, and so on) fr
 | 400    | Bad input, a value the database refused (a check), or Anthropic did not accept the user's key     |
 | 401    | No session                                                                                        |
 | 402    | The user's Anthropic account is out of credit                                                     |
+| 403    | A change that comes from another site. Someone else's data is a 404, never a 403                  |
 | 404    | Missing, someone else's rocket or session, or a route that does not exist                         |
 | 409    | The action does not fit the state: a part out of order, a launched rocket, a session already open |
+| 411    | An auth request that declares no length                                                           |
+| 413    | A body over 32 kb                                                                                 |
+| 415    | A body in a form the parser cannot read                                                           |
 | 429    | The user hit a cap, or Anthropic is limiting their key                                            |
 | 500    | Unexpected. Log it (without secrets) and return a generic sentence                                |
 | 503    | Claude is overloaded (529 from Anthropic)                                                         |
 | 504    | The Claude call timed out                                                                         |
+
+The routes under `/api/auth` belong to Better Auth, and its own answers (an unverified sign-in is a 403 with `EMAIL_NOT_VERIFIED`, a bad origin is a 403) come back as `{ message, code }`, not `{ error }`. The screens give those their own sentences. Everything else in `apps/api` uses the helpers.
 
 ## Messages
 

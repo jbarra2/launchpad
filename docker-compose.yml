@@ -1,0 +1,42 @@
+# Local databases only. The passwords here are for a database on this machine, and the same values
+# are in .env.example. The ports are not the usual 5432 and 5433, so Launchpad can run beside other
+# projects.
+services:
+  db:
+    image: postgres:17-alpine
+    container_name: launchpad-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: launchpad
+      POSTGRES_PASSWORD: launchpad
+      POSTGRES_DB: launchpad
+    ports:
+      - "127.0.0.1:5442:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U launchpad -d launchpad"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # The test database lives in memory, so a stopped container leaves nothing behind.
+  db-test:
+    image: postgres:17-alpine
+    container_name: launchpad-db-test
+    environment:
+      POSTGRES_USER: launchpad
+      POSTGRES_PASSWORD: launchpad
+      POSTGRES_DB: launchpad_test
+    ports:
+      - "127.0.0.1:5443:5432"
+    tmpfs:
+      - /var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U launchpad -d launchpad_test"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  pgdata:
