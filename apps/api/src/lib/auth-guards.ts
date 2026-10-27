@@ -1,10 +1,12 @@
 import {
   deleteAccountBody,
   forgotPasswordBody,
+  resetLinkQuery,
   resetPasswordBody,
   sendVerificationBody,
   signInBody,
   signUpBody,
+  verifyEmailQuery,
 } from "@launchpad/shared";
 import { APIError } from "better-auth/api";
 import type { ZodType } from "zod";
@@ -93,6 +95,30 @@ export function validateAuthBody(
   const message =
     issue && issue.path.length > 0 ? issue.message : "Check what you entered and try again.";
   throw new APIError("BAD_REQUEST", { message, code: "INVALID_INPUT" });
+}
+
+// The two links in emails are GET requests, so what they carry is in the query. Better Auth checks
+// a callback address only as it arrives, and can fold "/.//x" into "//x", another site, when it adds
+// an error to a failed link. Each link may land on its one page, checked here before Better Auth
+// follows it.
+const QUERY_SCHEMAS: Record<string, ZodType> = {
+  "/verify-email": verifyEmailQuery,
+  "/reset-password/:token": resetLinkQuery,
+};
+
+/** Throws a 400 when the query of a link does not fit. Other paths are not checked here. */
+export function validateAuthQuery(path: string, query: unknown): void {
+  const schema = QUERY_SCHEMAS[path];
+  if (!schema) {
+    return;
+  }
+  const result = schema.safeParse(isRecord(query) ? query : {});
+  if (!result.success) {
+    const issue = result.error.issues[0];
+    const message =
+      issue && issue.path.length > 0 ? issue.message : "That link is not valid. Ask for a new one.";
+    throw new APIError("BAD_REQUEST", { message, code: "INVALID_INPUT" });
+  }
 }
 
 const SECRET_KEYS = new Set(["token", "accessToken", "refreshToken", "idToken"]);

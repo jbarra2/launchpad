@@ -3,8 +3,8 @@
 How to build [MASTER_PLAN.md](MASTER_PLAN.md) in three days. The master plan is the source of truth for _what_ and _why_. This file is the source of truth for _in what order, and by when_.
 
 - Last updated: 2026-10-26
-- Progress: Sprints 1 (2026-10-22), 2a (2026-10-23), and 2b (2026-10-26) are done. Sprint 3 is in progress.
-- Deadline: done Saturday 2026-10-24.
+- Progress: Sprints 1 (2026-10-22), 2a (2026-10-23), 2b (2026-10-26), and 3 (2026-10-26) are done. Sprint 4 is in progress.
+- Deadline: the first plan ended Saturday 2026-10-24. On 2026-10-26 the rest of the core was re-planned to finish in one session, with the features listed under _Re-plan_ moved to _Later_.
 - Branching: sprint work lands on `develop`. `develop` runs CI and does not deploy. `main` is what a host would publish later. The user merges `develop` into `main` after Sprint 12.
 - Size: one sprint is one commit stop. If a sprint is sprawling, stop at the first **Done when** and move the rest to the next sprint or to the _Later_ list.
 
@@ -40,8 +40,8 @@ Rules that apply to every sprint after Sprint 2a (when `npm run verify` exists).
 | 1      | Thu 2026-10-22 | The plan, rules, and log are in the repo         | Done        |
 | 2a     | Thu 2026-10-22 | The gate: verify and CI                          | Done        |
 | 2b     | Thu 2026-10-22 | App skeleton: API, web page, and the rewrite     | Done        |
-| 3      | Fri 2026-10-23 | Accounts API: sign-up, verify, reset, delete     | In progress |
-| 4      | Fri 2026-10-23 | Auth screens, tokens, and the signed-in shell    | Not started |
+| 3      | Fri 2026-10-23 | Accounts API: sign-up, verify, reset, delete     | Done        |
+| 4      | Fri 2026-10-23 | Auth screens, tokens, and the signed-in shell    | In progress |
 | 5      | Fri 2026-10-23 | Rockets and parts API                            | Not started |
 | 6      | Fri 2026-10-23 | The pad and the rocket page, built by hand       | Not started |
 | 7      | Fri 2026-10-23 | Saved Claude key and model choice                | Not started |
@@ -135,7 +135,7 @@ npm run verify && npm run build
 
 ## Sprint 3 — Accounts API
 
-**Status: in progress.**
+**Status: done (2026-10-26).**
 
 **Effort: xhigh.** Sign-up is public, and a verification or reset link is a way into someone's account. It has to be right, not only working.
 
@@ -180,6 +180,8 @@ npm run verify
 
 ## Sprint 4 — Auth screens and shell
 
+**Status: in progress.**
+
 **Phase: accounts.**
 
 ### Work
@@ -188,8 +190,9 @@ npm run verify
 - `proxy.ts` refreshes the session cookie and redirects a signed-out visitor to `/sign-in?next=`. `next` is checked so it stays inside the site. The public paths are `/`, `/sign-up`, `/sign-in`, `/check-email`, `/forgot-password`, and `/reset-password`.
 - `lib/api.ts` (`apiFetch` for server components, forwarding cookies) and `auth-client.ts`.
 - The shared accessibility pieces in `components/a11y/`: `FormField`, `LiveRegion`, `SkipLink`.
-- The screens: sign-up, sign-in, check-email with a resend, forgot-password, reset-password. A signed-in header with The pad, Settings, and Sign out. An empty `/pad`.
+- The screens: sign-up, sign-in, check-email with a resend, forgot-password, reset-password. A signed-in header with The pad and Settings. Sign out is on Settings, at every width. An empty `/pad`, and a Settings page with the account and Sign out.
 - Tests: component tests with an axe assertion, and tests for the proxy and the `next` check.
+- An end-to-end test over HTTP that CI runs after the build: sign up through the web app, open the link from the API console, sign in, and land on the pad, plus the signed-out redirect.
 
 ### Verify
 
@@ -399,6 +402,26 @@ npm run verify
 
 ---
 
+## Re-plan (2026-10-26)
+
+The rest of the core is built in one session, in stops that each leave a working product. Each stop is one commit:
+
+1. Sprint 4: the sign-in screens and the signed-in shell.
+2. Sprints 5, 6, and 10: rockets built by hand, launch, and export.
+3. Sprints 7, 8, and 9: the saved key and the Claude chat.
+4. Sprint 12: the finish pass.
+
+No test, review, or walk is cut. These features move to _Later_ and are not built in this session:
+
+- The model picker and `UserSettings`. The chat uses Opus 5.5 (cut list item 3).
+- Rebuilding an attached part with a new session. Editing it by hand stays (item 2).
+- The liftoff and attach animations. The states are shown without movement (item 1).
+- Renaming or re-pitching a rocket, `PATCH /api/rockets/:id` (item 4).
+- The Copy buttons. Download stays (item 5).
+- All of Sprint 11.
+
+---
+
 ## Cut list if the core is behind
 
 Cut the first item first.
@@ -424,6 +447,7 @@ Outside the three days:
 - Hosting on Render, and a real email provider (see the hosting section of `MASTER_PLAN.md`).
 - A monthly subscription with included tokens on a platform key.
 - Any Sprint 11 item that did not get built.
+- From the 2026-10-26 re-plan: the model picker, rebuilding an attached part, the liftoff and attach animations, renaming or re-pitching a rocket, and the Copy buttons.
 
 ---
 

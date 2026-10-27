@@ -92,7 +92,9 @@ export function securityHeaders(production: boolean) {
 }
 
 // Next reads the rewrites when the web app is built and keeps them in what it builds, so
-// API_INTERNAL_URL has to be set for `npm run build`, not only for `npm run start`.
+// API_INTERNAL_URL has to be set for `npm run build`, not only for `npm run start`. The same
+// origin goes to server code (proxy.ts and lib/api.ts, through lib/api-origin.ts) by `env`, which
+// Next also fixes into the build, so the two can never disagree. Only server code reads it.
 export function buildConfig(
   { origin, proxyTimeoutMs }: ApiSettings,
   { production = false }: { production?: boolean } = {},
@@ -100,6 +102,7 @@ export function buildConfig(
   return {
     reactStrictMode: true,
     poweredByHeader: false,
+    env: { API_INTERNAL_URL: origin },
     experimental: { proxyTimeout: proxyTimeoutMs },
     async headers() {
       return [{ source: "/:path*", headers: securityHeaders(production) }];

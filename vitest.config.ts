@@ -14,6 +14,15 @@ export default defineConfig({
           include: ["scripts/**/*.test.ts"],
         },
       },
+      // The end-to-end harness's own checks. The end-to-end tests themselves run from
+      // e2e/vitest.config.ts, against the built apps.
+      {
+        test: {
+          name: "e2e-harness",
+          environment: "node",
+          include: ["e2e/**/*.test.ts"],
+        },
+      },
     ],
   },
 });

@@ -2,7 +2,7 @@
 
 A pad where project ideas are assembled before you build them. A new idea starts as the base of a rocket. Each session with the chat adds another part, and the plan stays saved. When you are ready to start developing, you launch it.
 
-**Status:** building. The build runs from 2026-10-22 to 2026-10-24. The plan is in `docs/`, the checks that every later sprint is held to are in place, and the two apps start and talk to each other. Accounts come next.
+**Status:** building. The plan is in `docs/`. Accounts work end to end: sign up, confirm the address from the link, sign in, and reach an empty pad. Rockets come next.
 
 ## How it will work
 
@@ -34,6 +34,7 @@ Use Node 24 (see `.nvmrc`) and have Docker running. Run `npm install` once, then
 - `npm run db:test:up` starts the test database on port 5443. It lives in memory and the tests clear it, so it never holds anything that matters. The tests need it.
 - `npm run verify` runs the public-repo check, the type check, lint, the format check, and the tests.
 - `npm run build` builds the workspaces.
+- `npm run test:e2e` runs the built apps against the test database and walks sign-up, the link, sign-in, and the pad over HTTP, as a browser does. Run `npm run build` first. It needs the test database, and nothing else running on ports 4100 and 3199, so stop `npm run dev` before it.
 
 ## Running it
 

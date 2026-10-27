@@ -1,12 +1,16 @@
 import { describe, expect, it } from "vitest";
 import {
+  AUTH_COOKIE_PREFIX,
   deleteAccountBody,
   forgotPasswordBody,
   meResponse,
+  resetLinkQuery,
   resetPasswordBody,
   sendVerificationBody,
   signInBody,
   signUpBody,
+  VERIFIED_LANDING,
+  verifyEmailQuery,
 } from "../src/index.js";
 
 const password = "a-long-enough-password";
@@ -16,7 +20,7 @@ function firstMessage(result: { success: boolean; error?: { issues: { message: s
 }
 
 describe("signUpBody", () => {
-  const valid = { name: "Ana", email: "ana@example.com", password };
+  const valid = { name: "Ana", email: "ana@example.com", password, callbackURL: VERIFIED_LANDING };
 
   it("accepts a name, an email, and a password of 12 or more characters", () => {
     expect(signUpBody.safeParse(valid).success).toBe(true);
@@ -62,13 +66,21 @@ describe("signUpBody", () => {
 
 describe("every body schema", () => {
   it.each([
-    ["signInBody", signInBody, { email: "ana@example.com", password: "x" }],
+    [
+      "signInBody",
+      signInBody,
+      { email: "ana@example.com", password: "x", callbackURL: VERIFIED_LANDING },
+    ],
     [
       "forgotPasswordBody",
       forgotPasswordBody,
       { email: "ana@example.com", redirectTo: "/reset-password" },
     ],
-    ["sendVerificationBody", sendVerificationBody, { email: "ana@example.com" }],
+    [
+      "sendVerificationBody",
+      sendVerificationBody,
+      { email: "ana@example.com", callbackURL: VERIFIED_LANDING },
+    ],
     ["resetPasswordBody", resetPasswordBody, { token: "abc", newPassword: password }],
     ["deleteAccountBody", deleteAccountBody, { password: "x" }],
   ])("%s refuses a field it does not list", (_name, schema, valid) => {
@@ -101,7 +113,13 @@ describe("a missing field", () => {
 
 describe("signInBody", () => {
   it("accepts an email and a password", () => {
-    expect(signInBody.safeParse({ email: "ana@example.com", password: "x" }).success).toBe(true);
+    expect(
+      signInBody.safeParse({
+        email: "ana@example.com",
+        password: "x",
+        callbackURL: VERIFIED_LANDING,
+      }).success,
+    ).toBe(true);
   });
 
   it("refuses an empty password and one over 128 characters, and does not judge the minimum", () => {
@@ -143,25 +161,88 @@ describe("forgotPasswordBody", () => {
 });
 
 describe("sendVerificationBody", () => {
-  it("accepts an email, with an optional place inside the site to land after verifying", () => {
-    expect(sendVerificationBody.safeParse({ email: "ana@example.com" }).success).toBe(true);
+  it("accepts an email, with the sign-in page as the only place to land after verifying", () => {
     expect(
-      sendVerificationBody.safeParse({ email: "ana@example.com", callbackURL: "/sign-in" }).success,
+      sendVerificationBody.safeParse({ email: "ana@example.com", callbackURL: VERIFIED_LANDING })
+        .success,
     ).toBe(true);
   });
 
-  it("refuses a place that leaves the site, and a bad email", () => {
-    for (const callbackURL of [
-      "https://evil.example/x",
-      "//evil.example/x",
-      "javascript:alert(1)",
-    ]) {
-      expect(
-        sendVerificationBody.safeParse({ email: "ana@example.com", callbackURL }).success,
-      ).toBe(false);
-    }
+  it("refuses a bad email", () => {
     expect(sendVerificationBody.safeParse({ email: "nope" }).success).toBe(false);
     expect(sendVerificationBody.safeParse({}).success).toBe(false);
+  });
+});
+
+describe("the landing place of a verification link", () => {
+  const elsewhere = [
+    "/sign-in",
+    "/pad",
+    "/",
+    "//evil.example",
+    "/.//evil.example",
+    "/%2e//evil.example",
+    "/x/..//evil.example",
+    "/	/evil.example",
+    "https://evil.example",
+    "javascript:alert(1)",
+  ];
+
+  it("is the sign-in page", () => {
+    expect(VERIFIED_LANDING).toBe("/sign-in?notice=verified");
+  });
+
+  it.each([
+    ["signUpBody", signUpBody, { name: "Ana", email: "ana@example.com", password }],
+    ["signInBody", signInBody, { email: "ana@example.com", password: "x" }],
+    ["sendVerificationBody", sendVerificationBody, { email: "ana@example.com" }],
+    ["verifyEmailQuery", verifyEmailQuery, { token: "t0k3n" }],
+  ])("is the only one %s accepts, and it is required", (_name, schema, base) => {
+    expect(schema.safeParse({ ...base, callbackURL: VERIFIED_LANDING }).success).toBe(true);
+    // Without it Better Auth would mail a link to "/", which the API refuses.
+    expect(schema.safeParse(base).success).toBe(false);
+    for (const callbackURL of elsewhere) {
+      const result = schema.safeParse({ ...base, callbackURL });
+      expect(result.success, callbackURL).toBe(false);
+      expect(firstMessage(result)).toBe("That link has to land on the sign-in page.");
+    }
+  });
+});
+
+describe("verifyEmailQuery", () => {
+  it("wants a token, and refuses a link with no token or with anything else added", () => {
+    expect(
+      verifyEmailQuery.safeParse({ token: "t0k3n", callbackURL: VERIFIED_LANDING }).success,
+    ).toBe(true);
+    expect(verifyEmailQuery.safeParse({ token: "t0k3n" }).success).toBe(false);
+    expect(verifyEmailQuery.safeParse({}).success).toBe(false);
+    expect(verifyEmailQuery.safeParse({ token: "" }).success).toBe(false);
+    expect(verifyEmailQuery.safeParse({ token: "t".repeat(4_001) }).success).toBe(false);
+    expect(verifyEmailQuery.safeParse({ token: "t0k3n", next: "/pad" }).success).toBe(false);
+  });
+});
+
+describe("resetLinkQuery", () => {
+  it("lets a reset link land on the reset page and nowhere else", () => {
+    expect(resetLinkQuery.safeParse({ callbackURL: "/reset-password" }).success).toBe(true);
+    for (const callbackURL of [
+      "/pad",
+      "/reset-password?x=1",
+      "/.//evil.example",
+      "//evil.example",
+    ]) {
+      expect(resetLinkQuery.safeParse({ callbackURL }).success, callbackURL).toBe(false);
+    }
+    expect(resetLinkQuery.safeParse({}).success).toBe(false);
+    expect(resetLinkQuery.safeParse({ callbackURL: "/reset-password", extra: "x" }).success).toBe(
+      false,
+    );
+  });
+});
+
+describe("AUTH_COOKIE_PREFIX", () => {
+  it("names the session cookie that the web app and the API both use", () => {
+    expect(AUTH_COOKIE_PREFIX).toBe("launchpad");
   });
 });
 

@@ -1,3 +1,4 @@
+import { VERIFIED_LANDING } from "@launchpad/shared";
 import { describe, expect, it } from "vitest";
 import {
   ALLOWED_AUTH_PATHS,
@@ -79,10 +80,10 @@ describe("validateAuthBody", () => {
     expect(
       validateAuthBody(
         "/sign-in/email",
-        { email: "  ana@example.com ", password: "whatever" },
+        { email: "  ana@example.com ", password: "whatever", callbackURL: VERIFIED_LANDING },
         undefined,
       ),
-    ).toEqual({ email: "ana@example.com", password: "whatever" });
+    ).toEqual({ email: "ana@example.com", password: "whatever", callbackURL: VERIFIED_LANDING });
   });
 
   it("trims a name, so padding cannot get past its cap", () => {
@@ -90,7 +91,12 @@ describe("validateAuthBody", () => {
     expect(
       validateAuthBody(
         "/sign-up/email",
-        { name: padded, email: "ana@example.com", password: "a-long-enough-password" },
+        {
+          name: padded,
+          email: "ana@example.com",
+          password: "a-long-enough-password",
+          callbackURL: VERIFIED_LANDING,
+        },
         undefined,
       )?.name,
     ).toBe("Ana");
@@ -100,7 +106,12 @@ describe("validateAuthBody", () => {
     expect(() =>
       validateAuthBody(
         "/sign-in/email",
-        { email: "ana@example.com", password: "x", rememberMe: false },
+        {
+          email: "ana@example.com",
+          password: "x",
+          callbackURL: VERIFIED_LANDING,
+          rememberMe: false,
+        },
         undefined,
       ),
     ).toThrow("Check what you entered and try again.");

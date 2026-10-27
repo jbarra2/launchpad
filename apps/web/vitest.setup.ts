@@ -9,5 +9,9 @@ expect.extend(matchers);
 afterEach(() => {
   cleanup();
   vi.unstubAllGlobals();
+  vi.unstubAllEnvs();
+  vi.restoreAllMocks();
+  // The node-environment tests (the proxy) have no sessionStorage.
+  globalThis.sessionStorage?.clear();
   vi.clearAllMocks();
 });

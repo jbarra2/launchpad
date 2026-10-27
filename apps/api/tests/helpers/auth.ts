@@ -1,3 +1,4 @@
+import { VERIFIED_LANDING } from "@launchpad/shared";
 import request from "supertest";
 import { createApp } from "../../src/app.js";
 import { outbox, type Mail, type MailKind } from "../../src/lib/mailer.js";
@@ -55,12 +56,13 @@ export function signUp(email: string, options: { name?: string; password?: strin
     email,
     password: options.password ?? PASSWORD,
     // Following the link verifies the address and sends the person on to the sign-in screen.
-    callbackURL: "/sign-in",
+    callbackURL: VERIFIED_LANDING,
   });
 }
 
 export function signIn(email: string, password = PASSWORD) {
-  return post("/api/auth/sign-in/email", { email, password });
+  // The landing page of the link that sign-in mails again to an address that is not verified.
+  return post("/api/auth/sign-in/email", { email, password, callbackURL: VERIFIED_LANDING });
 }
 
 export function mailsFor(email: string, kind?: MailKind): Mail[] {

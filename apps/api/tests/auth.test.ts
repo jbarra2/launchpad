@@ -1,5 +1,6 @@
 import http from "node:http";
 import type { AddressInfo } from "node:net";
+import { VERIFIED_LANDING } from "@launchpad/shared";
 import { describe, expect, it } from "vitest";
 import { auth } from "../src/lib/auth.js";
 import { authLog } from "../src/lib/auth-log.js";
@@ -75,6 +76,7 @@ describe("sign-up", () => {
       name: "Ana",
       email: "ana@example.com",
       password: PASSWORD,
+      callbackURL: VERIFIED_LANDING,
       ...change,
     });
     expect(response.status).toBe(400);
@@ -86,7 +88,7 @@ describe("sign-up", () => {
   it("refuses a request from another site", async () => {
     const response = await post(
       "/api/auth/sign-up/email",
-      { name: "Ana", email: "ana@example.com", password: PASSWORD },
+      { name: "Ana", email: "ana@example.com", password: PASSWORD, callbackURL: VERIFIED_LANDING },
       { origin: "https://evil.example" },
     );
     expect(response.status).toBe(403);
@@ -109,6 +111,7 @@ describe("what sign-up accepts", () => {
       name: "Ana",
       email: "ana@example.com",
       password: PASSWORD,
+      callbackURL: VERIFIED_LANDING,
       image: "i".repeat(10_000),
     });
     expect(response.status).toBe(400);
@@ -121,6 +124,7 @@ describe("what sign-up accepts", () => {
       name: padded,
       email: "  Ana@Example.com  ",
       password: PASSWORD,
+      callbackURL: VERIFIED_LANDING,
     });
     // The body cap is 32 kb, and this one is about 10 kb.
     expect(response.status).toBe(200);
@@ -197,7 +201,7 @@ describe("verifying the address", () => {
     expect(new URL(mail.url).origin).toBe(WEB_ORIGIN);
     const response = await get(pathOf(mail));
     expect(response.status).toBe(302);
-    expect(response.headers.location).toContain("/sign-in");
+    expect(response.headers.location).toBe(VERIFIED_LANDING);
     expect(response.headers["set-cookie"]).toBeUndefined();
     const user = await prisma.user.findUniqueOrThrow({ where: { email: "ana@example.com" } });
     expect(user.emailVerified).toBe(true);
@@ -237,8 +241,104 @@ describe("verifying the address", () => {
     url.searchParams.set("token", `${url.searchParams.get("token")}x`);
     const response = await get(url.pathname + url.search);
     expect(response.headers["set-cookie"]).toBeUndefined();
+    // The sign-in page keys its message on this code, so a change in Better Auth shows up here.
+    expect(response.status).toBe(302);
+    expect(response.headers.location).toBe("/sign-in?notice=verified&error=INVALID_TOKEN");
     const user = await prisma.user.findUniqueOrThrow({ where: { email: "ana@example.com" } });
     expect(user.emailVerified).toBe(false);
+  });
+});
+
+describe("asking for the link again", () => {
+  function resend(email: string) {
+    return post("/api/auth/send-verification-email", {
+      email,
+      callbackURL: "/sign-in?notice=verified",
+    });
+  }
+
+  it("mails a new link to an address that is not verified yet", async () => {
+    await signUp("ana@example.com");
+    const response = await resend("ana@example.com");
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual({ status: true });
+    const links = mailsFor("ana@example.com", "email-verification");
+    expect(links).toHaveLength(2);
+    expect(new URL(links[1]!.url).searchParams.get("callbackURL")).toBe("/sign-in?notice=verified");
+  });
+
+  it("answers an unknown address and a verified one the same way, and mails neither", async () => {
+    await createVerifiedUser("ben@example.com");
+    const sentBefore = outbox.length;
+    const unknown = await resend("nobody@example.com");
+    const verified = await resend("ben@example.com");
+    expect(unknown.status).toBe(200);
+    expect(verified.status).toBe(200);
+    expect(unknown.body).toEqual(verified.body);
+    expect(unknown.body).toEqual({ status: true });
+    expect(outbox).toHaveLength(sentBefore);
+  });
+
+  it("refuses a landing place that leaves the site", async () => {
+    await signUp("ana@example.com");
+    const response = await post("/api/auth/send-verification-email", {
+      email: "ana@example.com",
+      callbackURL: "/\t/evil.example",
+    });
+    // Better Auth's own check of callback addresses answers first. The shared schema is the second
+    // line, and refuses the same value (packages/shared/tests/auth.test.ts).
+    expect(response.status).toBe(403);
+    expect(response.body.code).toBe("INVALID_CALLBACK_URL");
+    expect(mailsFor("ana@example.com", "email-verification")).toHaveLength(1);
+  });
+
+  it("refuses what only the shared schema catches: a dot segment, an extra field, a long address", async () => {
+    await signUp("ana@example.com");
+    for (const body of [
+      // Better Auth accepts this one, so the shared schema is what stops it.
+      { email: "ana@example.com", callbackURL: "/.//evil.example" },
+      { email: "ana@example.com", callbackURL: "/sign-in?notice=verified", extra: "field" },
+      { email: `${"a".repeat(250)}@example.com`, callbackURL: VERIFIED_LANDING },
+    ]) {
+      const response = await post("/api/auth/send-verification-email", body);
+      expect(response.status, JSON.stringify(body).slice(0, 60)).toBe(400);
+      expect(response.body.code).toBe("INVALID_INPUT");
+    }
+    expect(mailsFor("ana@example.com", "email-verification")).toHaveLength(1);
+  });
+
+  it("refuses a landing page inside the site that is not the sign-in page, or none", async () => {
+    await signUp("ana@example.com");
+    // With none, Better Auth would mail a link to "/", which the API then refuses.
+    for (const body of [
+      { email: "ana@example.com", callbackURL: "/pad" },
+      { email: "ana@example.com" },
+    ]) {
+      const response = await post("/api/auth/send-verification-email", body);
+      expect(response.status, JSON.stringify(body)).toBe(400);
+      expect(response.body.code).toBe("INVALID_INPUT");
+    }
+    expect(mailsFor("ana@example.com", "email-verification")).toHaveLength(1);
+  });
+
+  it("allows 3 requests from one address in 15 minutes and then answers 429", async () => {
+    for (let i = 0; i < 3; i += 1) {
+      expect((await resend("nobody@example.com")).status).toBe(200);
+    }
+    const refused = await resend("nobody@example.com");
+    expect(refused.status).toBe(429);
+    // The app's own 15-minute window, not Better Auth's built-in one of 60 seconds.
+    expect(Number(refused.headers["x-retry-after"])).toBeGreaterThan(60);
+  });
+});
+
+describe("the session check", () => {
+  it("is never rate limited, because every page the web server renders asks it from one address", async () => {
+    const { cookie } = await createVerifiedUser("ana@example.com");
+    for (let i = 0; i < 110; i += 1) {
+      const response = await get("/api/auth/get-session", { cookie });
+      expect(response.status).toBe(200);
+    }
   });
 });
 
@@ -252,7 +352,10 @@ describe("sign-in", () => {
     expect(await prisma.session.count()).toBe(0);
     const mails = mailsFor("ana@example.com", "email-verification");
     expect(mails).toHaveLength(2);
-    expect(mails[1]!.url).not.toBe(mails[0]!.url);
+    // The link that sign-in mails again works, and lands on the sign-in page.
+    const opened = await get(pathOf(mails[1]!));
+    expect(opened.status).toBe(302);
+    expect(opened.headers.location).toBe(VERIFIED_LANDING);
   });
 
   it("answers a wrong password and an unknown email the same way", async () => {
@@ -534,6 +637,52 @@ describe("the reset link", () => {
       `${WEB_ORIGIN}/reset-password?token=${resetTokenOf(mail)}`,
     );
     expect(response.headers["set-cookie"]).toBeUndefined();
+  });
+
+  it("is refused when it names any other landing page, before it can redirect", async () => {
+    await createVerifiedUser("ana@example.com");
+    await post("/api/auth/request-password-reset", {
+      email: "ana@example.com",
+      redirectTo: "/reset-password",
+    });
+    const token = resetTokenOf(mailsFor("ana@example.com", "password-reset")[0]!);
+    for (const callbackURL of ["/.//evil.example", "/pad", "/reset-password?x=1"]) {
+      const response = await get(
+        `/api/auth/reset-password/${token}?callbackURL=${encodeURIComponent(callbackURL)}`,
+      );
+      expect(response.status, callbackURL).toBeGreaterThanOrEqual(400);
+      expect(response.status, callbackURL).toBeLessThan(500);
+      expect(response.headers.location, callbackURL).toBeUndefined();
+    }
+  });
+});
+
+describe("a verification link someone else wrote", () => {
+  it("cannot send a person to another site, or anywhere but sign-in, when it fails", async () => {
+    // Better Auth's own check lets the first three through, and it folds each into "//evil.example"
+    // when it adds the error to a failed link.
+    for (const callbackURL of [
+      "/.//evil.example",
+      "/%2e//evil.example",
+      "/x/..//evil.example%2Flogin",
+      "/pad",
+      "//evil.example",
+    ]) {
+      const response = await get(
+        `/api/auth/verify-email?token=made-up&callbackURL=${encodeURIComponent(callbackURL)}`,
+      );
+      expect(response.status, callbackURL).toBeGreaterThanOrEqual(400);
+      expect(response.status, callbackURL).toBeLessThan(500);
+      expect(response.headers.location, callbackURL).toBeUndefined();
+    }
+  });
+
+  it("still sends a failed link with the real landing page back to sign in, with the reason", async () => {
+    const response = await get(
+      `/api/auth/verify-email?token=made-up&callbackURL=${encodeURIComponent(VERIFIED_LANDING)}`,
+    );
+    expect(response.status).toBe(302);
+    expect(response.headers.location).toBe("/sign-in?notice=verified&error=INVALID_TOKEN");
   });
 });
 

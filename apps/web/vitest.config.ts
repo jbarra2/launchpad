@@ -18,5 +18,7 @@ export default defineConfig({
     include: ["**/*.{test,spec}.{ts,tsx}"],
     exclude: ["node_modules/**", ".next/**"],
     setupFiles: ["./vitest.setup.ts"],
+    // Next fixes the real value into the build from next.config.ts. Tests use a made-up address.
+    env: { API_INTERNAL_URL: "http://api.test:4100" },
   },
 });

@@ -107,6 +107,12 @@ describe("the config", () => {
     expect(await config.rewrites?.()).toEqual(apiRewrites(settings.origin));
   });
 
+  it("gives server code the same API address as the rewrites, and nothing else", () => {
+    // The root .env is never read into process.env, so this is the only way the proxy and the
+    // server components learn the address.
+    expect(buildConfig(settings).env).toEqual({ API_INTERNAL_URL: settings.origin });
+  });
+
   it("sends the security headers on every path", async () => {
     const headers = await buildConfig(settings).headers?.();
     expect(headers).toHaveLength(1);

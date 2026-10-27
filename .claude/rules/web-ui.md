@@ -10,7 +10,7 @@ paths:
 ## Styling
 
 - Plain CSS in `apps/web/app/globals.css`. No Tailwind, no CSS modules, and no UI or state library.
-- Colours are tokens in `:root`: `--bg`, `--surface`, `--text`, `--muted`, `--accent`, and `--accent-2`. The device's setting picks dark or light with `prefers-color-scheme`, and light remaps the same tokens.
+- Colours are tokens in `:root`: `--bg`, `--surface`, `--text`, `--muted`, `--accent`, `--accent-2`, `--on-accent` (text on a button), and `--danger` (error text). The device's setting picks dark or light with `prefers-color-scheme`, and light remaps the same tokens.
 - The Twilight values are in `docs/MASTER_PLAN.md`. Check any new colour pair for 4.5:1 before using it.
 - `--accent-2` and the purple-to-blue gradient are decoration only, used on the rocket. Never put text on the gradient, and never use `--accent-2` for text.
 - Buttons are solid `--accent`, with dark text in dark mode and white text in light mode. A link that looks like a button, with the `.button-link` class, uses the same styles.

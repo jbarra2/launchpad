@@ -1,9 +1,14 @@
 import { prismaAdapter } from "@better-auth/prisma-adapter";
-import { PASSWORD_MAX, PASSWORD_MIN } from "@launchpad/shared";
+import { AUTH_COOKIE_PREFIX, PASSWORD_MAX, PASSWORD_MIN } from "@launchpad/shared";
 import { betterAuth } from "better-auth";
 import { APIError, createAuthMiddleware, isAPIError } from "better-auth/api";
 import { env } from "../config/env.js";
-import { ALLOWED_AUTH_PATHS, validateAuthBody, withoutTokens } from "./auth-guards.js";
+import {
+  ALLOWED_AUTH_PATHS,
+  validateAuthBody,
+  validateAuthQuery,
+  withoutTokens,
+} from "./auth-guards.js";
 import { authLog } from "./auth-log.js";
 import { mailer } from "./mailer.js";
 import { prisma } from "./prisma.js";
@@ -105,7 +110,7 @@ export const auth = betterAuth({
     disableOriginCheck: false,
     disableCSRFCheck: false,
     // localhost cookies ignore the port, so the prefix keeps this app apart from other local ones.
-    cookiePrefix: "launchpad",
+    cookiePrefix: AUTH_COOKIE_PREFIX,
     useSecureCookies: env.NODE_ENV === "production",
     defaultCookieAttributes: { httpOnly: true, sameSite: "lax" },
     ipAddress: { ipAddressHeaders: [CLIENT_IP_HEADER] },
@@ -116,6 +121,7 @@ export const auth = betterAuth({
       if (!ALLOWED_AUTH_PATHS.has(ctx.path)) {
         throw new APIError("NOT_FOUND", { message: "Nothing was found at that address." });
       }
+      validateAuthQuery(ctx.path, ctx.query);
       const body = validateAuthBody(ctx.path, ctx.body, ctx.query);
       if (ctx.path === "/sign-up/email" && ctx.request && typeof body?.email === "string") {
         await lockSignUp(ctx.request, body.email.toLowerCase());

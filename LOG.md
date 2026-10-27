@@ -220,3 +220,81 @@ verified its address, with a finished reset counting as proof of the mailbox.
   password, a delete with it, and no rows left behind.
 - `npm run verify` and `npm run build` pass, with 367 tests (184 before). `npm audit` reports 0.
 - Marked the app skeleton work done in `docs/SPRINTS.md` with this commit, as the workflow says.
+
+## 6. Sign-in screens and the signed-in shell (Claude Code)
+
+**Asked:**
+
+Continue with the next piece of work and get the product working as soon as possible. Cut features
+that are not essential and keep them planned for later, but cut no tests or reviews. The sign-in
+screens are a centred card. The signed-in header has The pad and Settings only, and Sign out is on
+Settings at every width. The sign-in path also gets an end-to-end test over HTTP that CI runs.
+
+**What came back / what changed:**
+
+- Screens: sign-up, sign-in, check-email with a resend, forgot-password, and reset-password, each a
+  card that reflows from a phone to a desktop. A signed-in header, an empty pad, and Settings with
+  the account and Sign out. The home page links to sign-up and sign-in, and sends a signed-in person
+  to the pad.
+- Words: every refusal is a sentence written for the screen. Better Auth's own wording never shows,
+  and the only server text shown is the shared schemas' own sentences. Sign-in, forgot-password,
+  and check-email answer every address the same way, and a wrong password or an unconfirmed address
+  points to the password reset. A notice or an error in the page address shows only if it is on a
+  fixed list.
+- The redirect after sign-in: a `next` value is kept only when it is a page of this site, judged
+  the way the browser and the server will read it. Control characters, backslashes, encoded
+  slashes, another site, the API, Next's own files, and the sign-in pages themselves are refused,
+  and the page the browser would really open is returned rather than the raw value, so "." and
+  ".." cannot fold it into another site's address. A sign-in page with a trailing slash counts as
+  a sign-in page.
+- Links in emails: a verification link may land only on the sign-in page, and a reset link only on
+  the reset page. Every request that asks for a link must name that page, and the API checks the
+  landing page of a link before it follows it, so a link someone else wrote cannot send the person
+  who opens it to another site, even when it fails. A failed link never says the address is
+  confirmed.
+- The proxy: a visitor with no session cookie is sent to sign in with the page to come back to,
+  with no call to the API. With a cookie, it asks the API about the session, passes a renewed cookie
+  back to the browser, and clears a dead one. It sends on only this app's cookies. When the API
+  cannot be reached it lets the page decide, and every signed-in page checks the session itself. A
+  test fails if a signed-in page is added without that check.
+- The address of the API reaches server code from the build, the same way as the rewrites, so the
+  two cannot disagree, and a test checks that it is not in the code sent to the browser.
+- The session cookie's prefix is shared by the API and the web app.
+- Accessibility: a skip link, one polite live region, and labelled fields whose hint and error are
+  read with them. An error moves focus to itself, and a second press while a request is on its way
+  does nothing. Forms post, so pressing Enter before the page is ready never puts a password in the
+  address. The reset form takes the token out of the address bar once the page is ready, in a way
+  that keeps Back working. The
+  check-email screen reads the address from this tab only, never from the page address.
+- Colours: the Twilight tokens, dark by default and light by the device setting, with two new
+  tokens for button text and error text. Every pair was measured at 4.5:1 or better.
+- Tests: written first for the redirect check, the cookie filter, and the proxy, then the screens,
+  the pages, and the shell. Resending a verification link now has API tests too. The guarded
+  database clear moved into its own file so the end-to-end test reuses it.
+- End to end: the built API and web app start on a fresh test database. A new person signs up
+  through the web app, opens the link the API prints, signs in, lands on the empty pad, keeps a
+  renewed session, and signs out. A person who forgot their password asks for a link, opens it,
+  sets a new one, and only the new one works. A signed-out visitor is sent to sign in, and a
+  verification link someone else wrote is refused. The harness starts the API at the address the
+  web build was made with, refuses a port that is in use, gives the servers only the settings it
+  names, and empties only a local test database. CI runs it after the build.
+- Forms: a second press while a request is on its way does nothing, a form can be sent again after
+  a refusal, a press after success goes on to the next page again if its load was stopped, and a
+  page brought back by the Back button is ready to use. Long addresses wrap on a phone.
+- Three rounds of independent review, each a security review, a review of the tests, and a code
+  review, by fresh agents. The first found that a `next` value with "." segments could become
+  another site's address after sign-in, and that the reset form wiped the router's own history
+  state. The second found that a verification link someone else wrote could send the browser to
+  another site when it failed, because only Better Auth's own check looked at its landing page,
+  and that a form came back busy from the back/forward cache. The third found that a request with
+  no landing page was mailed a link that could not be opened. Each review also named tests that
+  could not fail. All were fixed, each with a test.
+- Every protection was broken on purpose, one at a time (over 100 breakages), to prove a test
+  notices. Each was caught, apart from one check that only repeats another and is kept as a second
+  line of defence.
+- Checked live in a real browser at 390, 768, and 1280 pixels wide, in light and dark: every
+  sign-in screen and the signed-in pad and Settings, 72 combinations with no sideways scroll, no
+  console errors, no failed requests, no axe findings with contrast, 44-pixel tap targets, and a
+  working Tab order.
+- `npm run verify`, `npm run build`, and `npm run test:e2e` pass, with 553 tests (367 before) and
+  12 end-to-end tests. No package was added or changed.

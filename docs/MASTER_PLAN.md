@@ -118,7 +118,7 @@ Someone else's rocket or session returns 404, never 403.
 
 ```
 ┌───────────────────────────────────────────────────────────────────────────────┐
-│ Launchpad                                         The pad   Settings   Sign out│
+│ Launchpad                                                    The pad   Settings│
 ├───────────────────────────────┬───────────────────────────────────────────────┤
 │ ‹ The pad                     │ Session · Fuel tank: Problem & people         │
 │ Recipe Swap                   │ ┌───────────────────────────────────────────┐ │
@@ -199,14 +199,16 @@ Account
 
 - **Palette:** Twilight. The tokens live in `:root`, and the device's setting picks dark or light with `prefers-color-scheme`. Every pair below was checked for contrast.
 
-  | Token        | Dark      | Light     | Contrast (dark / light)                            |
-  | ------------ | --------- | --------- | -------------------------------------------------- |
-  | `--bg`       | `#0E0B1F` | `#F6F5FB` |                                                    |
-  | `--surface`  | `#1A1633` | `#FFFFFF` |                                                    |
-  | `--text`     | `#F4F3FA` | `#15122B` | 17.5 / 16.8 : 1 on bg                              |
-  | `--muted`    | `#A9A5C8` | `#5F5B7A` | 8.2 / 5.9 : 1 on bg                                |
-  | `--accent`   | `#8B6CFF` | `#5B3FD9` | 5.2 / 6.1 : 1 on bg                                |
-  | `--accent-2` | `#4F8CFF` |           | Gradient end; decoration only, never used for text |
+  | Token         | Dark      | Light     | Contrast (dark / light)                                   |
+  | ------------- | --------- | --------- | --------------------------------------------------------- |
+  | `--bg`        | `#0E0B1F` | `#F6F5FB` |                                                           |
+  | `--surface`   | `#1A1633` | `#FFFFFF` |                                                           |
+  | `--text`      | `#F4F3FA` | `#15122B` | 17.5 / 16.8 : 1 on bg                                     |
+  | `--muted`     | `#A9A5C8` | `#5F5B7A` | 8.2 / 5.9 : 1 on bg                                       |
+  | `--accent`    | `#8B6CFF` | `#5B3FD9` | 5.2 / 6.1 : 1 on bg                                       |
+  | `--accent-2`  | `#4F8CFF` |           | Gradient end; decoration only, never used for text        |
+  | `--on-accent` | `#0E0B1F` | `#FFFFFF` | Text on a button: 5.2 / 6.6 : 1 on accent                 |
+  | `--danger`    | `#FF8A8A` | `#B42318` | Error text: 8.5 / 6.1 : 1 on bg, 7.7 / 6.6 : 1 on surface |
   - Buttons are solid accent: dark text in dark mode (5.2:1) and white text in light mode (6.6:1).
   - Any new color pair added during the build gets the same check.
 
