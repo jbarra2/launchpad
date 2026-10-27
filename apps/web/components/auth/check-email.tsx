@@ -5,10 +5,11 @@ import Link from "next/link";
 import { useRef, useState, useSyncExternalStore, type FormEvent } from "react";
 import { flushSync } from "react-dom";
 import { FormField } from "@/components/a11y/form-field";
+import { useAnnouncer } from "@/components/a11y/live-region";
 import { FormAlert, useFormAlert } from "@/components/form-alert";
 import { VERIFIED_LANDING, authErrorMessage, authPost } from "@/lib/auth-client";
 import { readPendingEmail } from "@/lib/pending-email";
-import { fieldErrors, textOf, type FieldErrors } from "./form-helpers";
+import { fieldErrors, focusFirstError, textOf, type FieldErrors } from "./form-helpers";
 
 const SENT =
   "If that address needs a link, a new one is on its way. If nothing arrives, wait 15 minutes before asking again.";
@@ -17,8 +18,8 @@ function noChanges() {
   return () => {};
 }
 
-/** `unverified` is true when sign-in sent the person here because the address is not confirmed. */
-export function CheckEmail({ unverified }: { unverified: boolean }) {
+/** Where sign-up sends a person. The words do not depend on whether the address had an account. */
+export function CheckEmail() {
   // The address comes from this tab's storage only, never from the page address. The server has no
   // storage, so it renders the version without an address.
   const email = useSyncExternalStore(noChanges, readPendingEmail, () => null);
@@ -27,6 +28,7 @@ export function CheckEmail({ unverified }: { unverified: boolean }) {
   const [sent, setSent] = useState(false);
   const pending = useRef(false);
   const alert = useFormAlert();
+  const announce = useAnnouncer();
 
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -41,11 +43,9 @@ export function CheckEmail({ unverified }: { unverified: boolean }) {
     alert.clear();
     setSent(false);
     if (!parsed.success) {
-      flushSync(() => setErrors(fieldErrors(parsed.error)));
-      const field = form.elements.namedItem("email");
-      if (field instanceof HTMLElement) {
-        field.focus();
-      }
+      const found = fieldErrors(parsed.error);
+      flushSync(() => setErrors(found));
+      focusFirstError(form, found, ["email"], announce);
       return;
     }
     setErrors({});
@@ -65,18 +65,19 @@ export function CheckEmail({ unverified }: { unverified: boolean }) {
   return (
     <>
       <h1>Check your email</h1>
-      {unverified ? (
-        <p>Your email address is not confirmed yet, so we sent you a new link.</p>
-      ) : null}
+      {/* The same words whether or not the address already had an account, so the page shows
+          nobody which addresses do. The message itself says which it is. */}
       <p>
         {email ? (
           <>
-            We sent a link to <strong>{email}</strong>.
+            We sent a message to <strong>{email}</strong>.
           </>
         ) : (
-          "We sent you a link."
+          "We sent you a message."
         )}{" "}
-        Open it to confirm your address, then sign in. Links can take a minute to arrive.
+        If the address is new, open the link in it to confirm the address, then sign in. If the
+        address already has an account, the message says so. Messages can take a minute to arrive.
+        If nothing comes, sign in or reset your password with the links below.
       </p>
 
       <form method="post" noValidate aria-label="Send the link again" onSubmit={onSubmit}>

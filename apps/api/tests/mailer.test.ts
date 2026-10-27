@@ -108,6 +108,54 @@ describe("throttleMailer", () => {
   });
 });
 
+describe("the mailers the app uses, on a clock the test moves", () => {
+  // Each throttle reads the clock it was made with, so a fresh copy of the module is made after the
+  // clock is faked.
+  async function freshMailers() {
+    vi.useFakeTimers();
+    vi.resetModules();
+    return import("../src/lib/mailer.js");
+  }
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("lets links to one address go again 15 minutes after the first, not before", async () => {
+    vi.spyOn(console, "warn").mockImplementation(() => {});
+    const fresh = await freshMailers();
+    for (let i = 0; i < 6; i += 1) {
+      await fresh.mailer.send({ ...mail, to: "ana@example.com" });
+    }
+    expect(fresh.outbox).toHaveLength(5);
+    vi.advanceTimersByTime(15 * 60 * 1000 - 1);
+    await fresh.mailer.send({ ...mail, to: "ana@example.com" });
+    expect(fresh.outbox).toHaveLength(5);
+    vi.advanceTimersByTime(1);
+    await fresh.mailer.send({ ...mail, to: "ana@example.com" });
+    expect(fresh.outbox).toHaveLength(6);
+  });
+
+  it("sends one notice to an address in 15 minutes, and the next only after that", async () => {
+    vi.spyOn(console, "warn").mockImplementation(() => {});
+    const fresh = await freshMailers();
+    const notice = {
+      kind: "account-exists",
+      to: "ana@example.com",
+      url: "http://x/sign-in",
+    } as const;
+    await fresh.noticeMailer.send(notice);
+    await fresh.noticeMailer.send(notice);
+    expect(fresh.outbox).toHaveLength(1);
+    vi.advanceTimersByTime(15 * 60 * 1000 - 1);
+    await fresh.noticeMailer.send(notice);
+    expect(fresh.outbox).toHaveLength(1);
+    vi.advanceTimersByTime(1);
+    await fresh.noticeMailer.send(notice);
+    expect(fresh.outbox).toHaveLength(2);
+  });
+});
+
 describe("the mailer the app uses", () => {
   it("sends at most 5 messages to one address in 15 minutes, and drops the rest without an error", async () => {
     vi.spyOn(console, "warn").mockImplementation(() => {});

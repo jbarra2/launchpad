@@ -5,9 +5,10 @@ import Link from "next/link";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { flushSync } from "react-dom";
 import { FormField } from "@/components/a11y/form-field";
+import { useAnnouncer } from "@/components/a11y/live-region";
 import { FormAlert, useFormAlert } from "@/components/form-alert";
 import { authErrorMessage, authPost } from "@/lib/auth-client";
-import { fieldErrors, textOf, type FieldErrors } from "./form-helpers";
+import { fieldErrors, focusFirstError, textOf, type FieldErrors } from "./form-helpers";
 
 export function ForgotPasswordForm() {
   const [errors, setErrors] = useState<FieldErrors>({});
@@ -16,6 +17,7 @@ export function ForgotPasswordForm() {
   const pending = useRef(false);
   const doneRef = useRef<HTMLParagraphElement>(null);
   const alert = useFormAlert();
+  const announce = useAnnouncer();
 
   useEffect(() => {
     if (sentTo) {
@@ -35,11 +37,9 @@ export function ForgotPasswordForm() {
     });
     alert.clear();
     if (!parsed.success) {
-      flushSync(() => setErrors(fieldErrors(parsed.error)));
-      const field = form.elements.namedItem("email");
-      if (field instanceof HTMLElement) {
-        field.focus();
-      }
+      const found = fieldErrors(parsed.error);
+      flushSync(() => setErrors(found));
+      focusFirstError(form, found, ["email"], announce);
       return;
     }
     setErrors({});

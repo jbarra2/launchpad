@@ -24,7 +24,7 @@ Use the `HttpError` helpers (`badRequest`, `notFound`, `conflict`, and so on) fr
 | 503    | Claude is overloaded (529 from Anthropic)                                                         |
 | 504    | The Claude call timed out                                                                         |
 
-The routes under `/api/auth` belong to Better Auth, and its own answers (an unverified sign-in is a 403 with `EMAIL_NOT_VERIFIED`, a bad origin is a 403) come back as `{ message, code }`, not `{ error }`. The screens give those their own sentences. Everything else in `apps/api` uses the helpers.
+The routes under `/api/auth` belong to Better Auth, and its own answers (a bad origin is a 403) come back as `{ message, code }`, not `{ error }`. A sign-in to an account whose address is not confirmed gets the same 401 `INVALID_EMAIL_OR_PASSWORD` as a wrong password, so sign-in cannot show who has an account. The screens give those their own sentences. Everything else in `apps/api` uses the helpers.
 
 ## Messages
 

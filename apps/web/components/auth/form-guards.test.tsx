@@ -11,7 +11,7 @@ import { fetchMock, submit, type } from "./test-helpers";
 vi.mock("@/lib/navigate", () => ({ navigate: vi.fn(), replaceLocation: vi.fn() }));
 const { navigate } = await import("@/lib/navigate");
 
-const PASSWORD = "a-long-enough-password";
+const PASSWORD = "A-long-enough-password-1";
 
 interface FormCase {
   name: string;
@@ -45,7 +45,7 @@ const forms: FormCase[] = [
   },
   {
     name: "check-email",
-    form: () => <CheckEmail unverified={false} />,
+    form: () => <CheckEmail />,
     fill: () => type("Email", "ana@example.com"),
     button: "Send the link again",
     busy: "Sending…",

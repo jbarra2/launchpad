@@ -140,8 +140,19 @@ describe("Settings", () => {
   it("shows the account and holds Sign out", async () => {
     const { container } = render(<AppLayout>{await SettingsPage()}</AppLayout>);
     expect(requireUser).toHaveBeenCalledWith("/settings");
-    expect(screen.getByText("ana@example.com")).toBeInTheDocument();
+    expect(screen.getByText("Ana")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Sign out" })).toBeInTheDocument();
     expect(await axe(container)).toHaveNoViolations();
+  });
+
+  it("shows only part of the email, and the full address is nowhere in the page", async () => {
+    const { container } = render(<AppLayout>{await SettingsPage()}</AppLayout>);
+    expect(screen.getByText("a•••@e•••.com")).toBeInTheDocument();
+    // A screen reader is told why it reads dots.
+    expect(screen.getByText("a•••@e•••.com").closest("dd")).toHaveTextContent(
+      "a•••@e•••.com (partly hidden)",
+    );
+    expect(container.innerHTML).not.toContain("ana@");
+    expect(container.innerHTML).not.toContain("example");
   });
 });

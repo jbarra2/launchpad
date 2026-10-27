@@ -19,14 +19,27 @@ export function fieldErrors(error: SchemaError): FieldErrors {
   return errors;
 }
 
-/** Moves focus to the first field, in the form's order, that has an error. */
-export function focusFirstError(form: HTMLFormElement, errors: FieldErrors, order: string[]): void {
+/**
+ * Moves focus to the first field, in the form's order, that has an error, so a screen reader reads
+ * the field with its error. When that field has focus already, as after Enter in it, focus does not
+ * move and nothing would be read, so the error is announced instead.
+ */
+export function focusFirstError(
+  form: HTMLFormElement,
+  errors: FieldErrors,
+  order: string[],
+  announce: (message: string) => void,
+): void {
   const first = order.find((name) => errors[name]);
-  if (first) {
-    const control = form.elements.namedItem(first);
-    if (control instanceof HTMLElement) {
-      control.focus();
-    }
+  const message = first ? errors[first] : undefined;
+  const control = first ? form.elements.namedItem(first) : null;
+  if (!message || !(control instanceof HTMLElement)) {
+    return;
+  }
+  if (document.activeElement === control) {
+    announce(message);
+  } else {
+    control.focus();
   }
 }
 

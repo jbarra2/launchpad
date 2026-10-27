@@ -101,9 +101,9 @@ A full-stack web app for phone and desktop. Anyone can sign up with an email and
 | Route                                 | Who        | Contents                                                                                                                                                                                                                                                                     |
 | ------------------------------------- | ---------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `/`                                   | signed out | A short pitch, **Sign up** / **Sign in**, and the rocket illustration. **Sprint 11:** a sample finished rocket (read-only, fictional "Recipe Swap": the rocket, its six parts, and its `PLAN.md`), with no database. A signed-in user is sent to `/pad`                      |
-| `/sign-up`, `/sign-in`                | signed out | Email and password (12–128 characters); sign-up also asks for a name                                                                                                                                                                                                         |
-| `/check-email`                        | signed out | "We sent a link to …", with a resend button                                                                                                                                                                                                                                  |
-| `/forgot-password`, `/reset-password` | signed out | The password-reset link flow                                                                                                                                                                                                                                                 |
+| `/sign-up`, `/sign-in`                | signed out | Email and password; sign-up also asks for a name. A new password has 12–128 characters, an uppercase letter, a lowercase letter and a number, and no spaces                                                                                                                  |
+| `/check-email`                        | signed out | After sign-up, "We sent a message to …", in the same words whether or not the address already had an account, with a resend button                                                                                                                                           |
+| `/forgot-password`, `/reset-password` | signed out | The password-reset link flow. The new password must differ from the current one                                                                                                                                                                                              |
 | `/pad`                                | signed in  | Grid of rocket cards (mini rocket, name, "3 of 6 parts" or "Ready to launch"), **+ New idea**, then the **Launched** shelf. With no rockets, a **Getting started** card: create your first idea, optionally add a Claude key (with how to get one), or use "Write it myself" |
 | `/pad/new`                            | signed in  | Name (up to 80), pitch (up to 200), and an optional "why". Creates the rocket and its Engine                                                                                                                                                                                 |
 | `/rockets/[id]`                       | owner only | The rocket and the parts list (the plan). **Sprint 11:** each part gets a collapsed **Past sessions** section with read-only transcripts (they are kept from the start). **Start / Continue session**, **Write it myself**, Launch, Export                                   |
@@ -192,7 +192,7 @@ Chat model
 Usage this month
   Opus 5.5 · 41,200 tokens in · 9,800 out
 Account
-  ana@example.com   [ Sign out ]   [ Delete account… ]
+  a•••@e•••.com (masked on the server)   [ Sign out ]   [ Delete account… ]
 ```
 
 ### Look and feel
@@ -406,7 +406,7 @@ All of it lives in `apps/api/src/lib/claude.ts`. Its interface is `reply`, `draf
 
 ## 5. Risks and how they are handled
 
-- **Sign-up may reveal whether an email exists.** Better Auth may return "already exists". This is tested in Sprint 3. If it leaks, both cases return the same success and the same "check your email" screen.
+- **Sign-up may reveal whether an email exists.** A new address and one with an account get the same success and the same "check your email" screen. The owner of an address that already has an account is mailed a notice with the sign-in page, or the reset page when the address was never confirmed, at most one per address in 15 minutes, with its own count so it never uses up the links. Sign-in answers an account whose address is not confirmed exactly like a wrong password, and mails it a new link.
 - **Verification links go through the Next rewrite.** `BETTER_AUTH_URL` is the web origin and `callbackURL` must be relative. A test follows the link from the outbox.
 - **Opus 5.5 is slow without streaming.** Mitigations: a longer proxy timeout, effort `low`, the composer disabled while waiting, and a visible thinking status. Streaming is a later improvement.
 - **TypeScript 7 and the Babel parser.** ESLint is not type-aware, so `tsc` is the type gate. Do not add `typescript-eslint` while it excludes TypeScript 7.

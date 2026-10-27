@@ -69,6 +69,17 @@ describe("MAIL_LINE", () => {
       "http://127.0.0.1:3199/api/auth/verify-email?token=t",
     ]);
   });
+
+  it("reads the notice an address with an account gets when someone signs up with it", () => {
+    const match = MAIL_LINE.exec(
+      "[mail] account-exists link for ana@example.com: http://127.0.0.1:3199/sign-in",
+    );
+    expect(match?.slice(1)).toEqual([
+      "account-exists",
+      "ana@example.com",
+      "http://127.0.0.1:3199/sign-in",
+    ]);
+  });
 });
 
 describe("builtApiOrigin", () => {

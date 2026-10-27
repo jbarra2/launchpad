@@ -1,10 +1,11 @@
 import http from "node:http";
 import type { AddressInfo } from "node:net";
-import { VERIFIED_LANDING } from "@launchpad/shared";
-import { describe, expect, it } from "vitest";
+import { PASSWORD_UNCHANGED, VERIFIED_LANDING } from "@launchpad/shared";
+import { hashPassword } from "better-auth/crypto";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { auth } from "../src/lib/auth.js";
 import { authLog } from "../src/lib/auth-log.js";
-import { outbox } from "../src/lib/mailer.js";
+import { mailer, outbox } from "../src/lib/mailer.js";
 import { prisma } from "../src/lib/prisma.js";
 import {
   PASSWORD,
@@ -45,7 +46,7 @@ describe("sign-up", () => {
     const first = await signUp("ana@example.com", { name: "Ana", password: PASSWORD });
     const second = await signUp("ana@example.com", {
       name: "Someone Else",
-      password: "another-long-password",
+      password: "Another-long-password-2",
     });
     expect(second.status).toBe(first.status);
     expect(Object.keys(second.body).sort()).toEqual(Object.keys(first.body).sort());
@@ -58,12 +59,87 @@ describe("sign-up", () => {
     const mail = mailsFor("ana@example.com", "email-verification")[0]!;
     await get(pathOf(mail));
     expect((await signIn("ana@example.com", PASSWORD)).status).toBe(200);
-    expect((await signIn("ana@example.com", "another-long-password")).status).toBe(401);
+    expect((await signIn("ana@example.com", "Another-long-password-2")).status).toBe(401);
+    const user = await prisma.user.findUniqueOrThrow({ where: { email: "ana@example.com" } });
+    expect(user.name).toBe("Ana");
+  });
+
+  it("tells the owner of a confirmed address, with the sign-in page and no way in of its own", async () => {
+    await createVerifiedUser("ana@example.com");
+    outbox.length = 0;
+    // The address as typed differs in case from the one stored.
+    const again = await signUp("Ana@Example.COM", { name: "Someone Else" });
+    expect(again.status).toBe(200);
+    expect(outbox).toHaveLength(1);
+    const notice = outbox[0]!;
+    expect(notice).toMatchObject({ kind: "account-exists", to: "ana@example.com" });
+    // A plain page on the web app, with no token: following it opens nothing by itself.
+    expect(notice.url).toBe(`${WEB_ORIGIN}/sign-in`);
+    expect(mailsFor("ana@example.com", "email-verification")).toHaveLength(0);
+  });
+
+  it("points the owner of an unconfirmed address to a reset, which replaces any password a stranger set", async () => {
+    // The account may be someone else's, made with this address and a password of their own. A
+    // confirmation link would confirm it for them, so the notice is never one.
+    await signUp("ana@example.com", { name: "Mallory", password: "Mallorys-own-password-3" });
+    outbox.length = 0;
+    await signUp("ana@example.com");
+    expect(outbox).toHaveLength(1);
+    expect(outbox[0]).toMatchObject({
+      kind: "account-exists",
+      to: "ana@example.com",
+      url: `${WEB_ORIGIN}/forgot-password`,
+    });
+  });
+
+  it("sends no notice for a new address, only its link", async () => {
+    await signUp("ana@example.com");
+    expect(outbox.map((mail) => mail.kind)).toEqual(["email-verification"]);
+  });
+
+  it("sends the owner one notice in 15 minutes, however many sign-ups a stranger makes", async () => {
+    await signUp("ana@example.com");
+    // Four more sign-ups reach the limit of five from one address.
+    for (let i = 0; i < 4; i += 1) {
+      expect((await signUp("ana@example.com", { name: "Someone Else" })).status).toBe(200);
+    }
+    expect(mailsFor("ana@example.com", "account-exists")).toHaveLength(1);
+  });
+
+  it("never lets notices use up the links the owner asks for", async () => {
+    await signUp("ana@example.com");
+    for (let i = 0; i < 4; i += 1) {
+      await signUp("ana@example.com", { name: "Someone Else" });
+    }
+    // The link limit is five in 15 minutes. One verification link has gone, so a reset still goes.
+    const reset = await post("/api/auth/request-password-reset", {
+      email: "ana@example.com",
+      redirectTo: "/reset-password",
+    });
+    expect(reset.status).toBe(200);
+    expect(mailsFor("ana@example.com", "password-reset")).toHaveLength(1);
+  });
+
+  it("does not let a full link limit stop the notice either", async () => {
+    await signUp("ana@example.com");
+    // Four more links fill the five allowed in 15 minutes.
+    for (let i = 0; i < 4; i += 1) {
+      await mailer.send({ kind: "password-reset", to: "ana@example.com", url: `${WEB_ORIGIN}/x` });
+    }
+    outbox.length = 0;
+    await signUp("ana@example.com", { name: "Someone Else" });
+    expect(mailsFor("ana@example.com", "account-exists")).toHaveLength(1);
   });
 
   it.each([
-    ["a password of 11 characters", { password: "p".repeat(11) }],
-    ["a password of 129 characters", { password: "p".repeat(129) }],
+    ["a password of 11 characters", { password: `Aa1${"p".repeat(8)}` }],
+    ["a password of 129 characters", { password: `Aa1${"p".repeat(126)}` }],
+    ["a password with no uppercase letter", { password: "correct-horse-battery-9" }],
+    ["a password with no lowercase letter", { password: "CORRECT-HORSE-BATTERY-9" }],
+    ["a password with no number", { password: "Correct-horse-battery-nine" }],
+    ["a password with a space", { password: "Correct horse battery 9" }],
+    ["a password with a tab", { password: "Correct\thorse-battery-9" }],
+    ["a password with a no-break space", { password: "Correct\u00a0horse-battery-9" }],
     ["a name over 80 characters", { name: "n".repeat(81) }],
     ["an empty name", { name: "   " }],
     [
@@ -145,6 +221,9 @@ describe("what sign-up accepts", () => {
     expect(Object.keys(two.body.user).sort()).toEqual(Object.keys(one.body.user).sort());
     expect(await prisma.user.count()).toBe(1);
     expect(mailsFor("race@example.com", "email-verification")).toHaveLength(1);
+    // The second finds the account the first made, so the address is told, as after any repeated
+    // sign-up.
+    expect(mailsFor("race@example.com", "account-exists")).toHaveLength(1);
   });
 });
 
@@ -228,7 +307,7 @@ describe("verifying the address", () => {
 
   it("gives nobody a session when someone else's squatted account is verified by its real owner", async () => {
     // Mallory signs up with Victim's address and a password of her own. Victim follows the link.
-    await signUp("victim@example.com", { name: "Mallory", password: "mallorys-own-password" });
+    await signUp("victim@example.com", { name: "Mallory", password: "Mallorys-own-password-3" });
     const link = mailsFor("victim@example.com", "email-verification")[0]!;
     const response = await get(pathOf(link));
     expect(response.headers["set-cookie"]).toBeUndefined();
@@ -343,12 +422,27 @@ describe("the session check", () => {
 });
 
 describe("sign-in", () => {
-  it("refuses an account that is not verified and sends the link again", async () => {
+  // What a sign-in answer shows a caller, apart from timing: the status line, every header but the
+  // date, and the body exactly as sent.
+  function answerOf(response: Awaited<ReturnType<typeof signIn>>) {
+    const headers: Record<string, unknown> = { ...response.headers };
+    delete headers.date;
+    // The words after the status code. Supertest's types leave out the Node response they come from.
+    const { statusMessage } = (response as unknown as { res: { statusMessage?: string } }).res;
+    return { status: response.status, statusMessage, headers, text: response.text };
+  }
+
+  it("refuses an account that is not verified exactly as it refuses a wrong password, and sends the link again", async () => {
     await signUp("ana@example.com");
     expect(mailsFor("ana@example.com")).toHaveLength(1);
     const response = await signIn("ana@example.com");
-    expect(response.status).toBe(403);
-    expect(response.headers["set-cookie"]).toBeUndefined();
+    const wrong = await signIn("ana@example.com", "Not-the-password-0");
+    expect(response.status).toBe(401);
+    expect(answerOf(response)).toEqual(answerOf(wrong));
+    expect(response.body).toEqual({
+      message: "Invalid email or password",
+      code: "INVALID_EMAIL_OR_PASSWORD",
+    });
     expect(await prisma.session.count()).toBe(0);
     const mails = mailsFor("ana@example.com", "email-verification");
     expect(mails).toHaveLength(2);
@@ -356,6 +450,39 @@ describe("sign-in", () => {
     const opened = await get(pathOf(mails[1]!));
     expect(opened.status).toBe(302);
     expect(opened.headers.location).toBe(VERIFIED_LANDING);
+  });
+
+  it("does not show who had an account when someone signs up with an address and then signs in", async () => {
+    // Ben already has an account. Carol's address has none.
+    await createVerifiedUser("ben@example.com", "Ben");
+    const probe = "Probe-password-1";
+    const tryAddress = async (email: string) => {
+      expect((await signUp(email, { name: "Prober", password: probe })).status).toBe(200);
+      return answerOf(await signIn(email, probe));
+    };
+    const taken = await tryAddress("ben@example.com");
+    const free = await tryAddress("carol@example.com");
+    expect(taken.status).toBe(401);
+    expect(free).toEqual(taken);
+  });
+
+  it("keeps working for a password set before the rules for new passwords", async () => {
+    // Sign-up refuses this password now, so it is stored the way an older sign-up stored it.
+    const old = "an old pass phrase";
+    const { userId } = await createVerifiedUser("ana@example.com");
+    await prisma.account.updateMany({
+      where: { userId, providerId: "credential" },
+      data: { password: await hashPassword(old) },
+    });
+    const login = await signIn("ana@example.com", old);
+    expect(login.status).toBe(200);
+    const removed = await post(
+      "/api/auth/delete-user",
+      { password: old },
+      { cookie: cookieFrom(login) },
+    );
+    expect(removed.status).toBe(200);
+    expect(await prisma.user.count()).toBe(0);
   });
 
   it("answers a wrong password and an unknown email the same way", async () => {
@@ -429,7 +556,7 @@ describe("password reset", () => {
       redirectTo: "/reset-password",
     });
     const mail = mailsFor("ana@example.com", "password-reset")[0]!;
-    const newPassword = "a-brand-new-password";
+    const newPassword = "A-brand-new-password-4";
     const reset = await post("/api/auth/reset-password", {
       token: resetTokenOf(mail),
       newPassword,
@@ -450,12 +577,12 @@ describe("password reset", () => {
     expect(mail).toBeDefined();
     const reset = await post("/api/auth/reset-password", {
       token: resetTokenOf(mail),
-      newPassword: "a-brand-new-password",
+      newPassword: "A-brand-new-password-4",
     });
     expect(reset.status).toBe(200);
     const user = await prisma.user.findUniqueOrThrow({ where: { email: "ana@example.com" } });
     expect(user.emailVerified).toBe(true);
-    expect((await signIn("ana@example.com", "a-brand-new-password")).status).toBe(200);
+    expect((await signIn("ana@example.com", "A-brand-new-password-4")).status).toBe(200);
   });
 
   it("accepts a link only once", async () => {
@@ -466,29 +593,166 @@ describe("password reset", () => {
     });
     const token = resetTokenOf(mailsFor("ana@example.com", "password-reset")[0]!);
     expect(
-      (await post("/api/auth/reset-password", { token, newPassword: "first-new-password" })).status,
+      (await post("/api/auth/reset-password", { token, newPassword: "First-new-password-5" }))
+        .status,
     ).toBe(200);
     const again = await post("/api/auth/reset-password", {
       token,
-      newPassword: "second-new-password",
+      newPassword: "Second-new-password-6",
     });
     expect(again.status).toBe(400);
-    expect((await signIn("ana@example.com", "second-new-password")).status).toBe(401);
+    expect((await signIn("ana@example.com", "Second-new-password-6")).status).toBe(401);
   });
 
-  it("refuses a new password that is too short and keeps the link usable", async () => {
+  it("refuses a new password that breaks a rule, and keeps the link usable", async () => {
     await createVerifiedUser("ana@example.com");
     await post("/api/auth/request-password-reset", {
       email: "ana@example.com",
       redirectTo: "/reset-password",
     });
     const token = resetTokenOf(mailsFor("ana@example.com", "password-reset")[0]!);
-    const short = await post("/api/auth/reset-password", { token, newPassword: "short" });
-    expect(short.status).toBe(400);
+    // Four tries fit inside the limit of five resets in 15 minutes, with one left for the good one.
+    for (const weak of [
+      "short",
+      "long-enough-but-no-capital-1",
+      "Long-enough-but-no-number",
+      "Long enough with spaces 1",
+    ]) {
+      const refused = await post("/api/auth/reset-password", { token, newPassword: weak });
+      expect(refused.status, weak).toBe(400);
+      expect(refused.body.code, weak).toBe("INVALID_INPUT");
+    }
+    expect((await signIn("ana@example.com", PASSWORD)).status).toBe(200);
     expect(
-      (await post("/api/auth/reset-password", { token, newPassword: "long-enough-password" }))
+      (await post("/api/auth/reset-password", { token, newPassword: "Long-enough-password-7" }))
         .status,
     ).toBe(200);
+  });
+
+  describe("to the password the account already has", () => {
+    afterEach(() => {
+      vi.restoreAllMocks();
+    });
+
+    async function resetLinkFor(email: string): Promise<string> {
+      await post("/api/auth/request-password-reset", { email, redirectTo: "/reset-password" });
+      const mail = mailsFor(email, "password-reset").at(-1);
+      if (!mail) {
+        throw new Error("no reset link was mailed");
+      }
+      return resetTokenOf(mail);
+    }
+
+    it("is refused with a code the form can show, and changes nothing", async () => {
+      const { cookie } = await createVerifiedUser("ana@example.com");
+      const token = await resetLinkFor("ana@example.com");
+      const before = await prisma.account.findFirstOrThrow({ where: { providerId: "credential" } });
+
+      const same = await post("/api/auth/reset-password", { token, newPassword: PASSWORD });
+      expect(same.status).toBe(400);
+      expect(same.body).toMatchObject(PASSWORD_UNCHANGED);
+
+      // Other sessions go on, the stored password is untouched, and the link still works.
+      expect((await get("/api/me", { cookie })).status).toBe(200);
+      const after = await prisma.account.findFirstOrThrow({ where: { providerId: "credential" } });
+      expect(after.password).toBe(before.password);
+      expect(after.updatedAt).toEqual(before.updatedAt);
+      const fresh = await post("/api/auth/reset-password", {
+        token,
+        newPassword: "A-brand-new-password-4",
+      });
+      expect(fresh.status).toBe(200);
+      expect((await signIn("ana@example.com", "A-brand-new-password-4")).status).toBe(200);
+    });
+
+    it("is refused the same way when the link's token comes in the query", async () => {
+      await createVerifiedUser("ana@example.com");
+      const token = await resetLinkFor("ana@example.com");
+      const same = await post(`/api/auth/reset-password?token=${encodeURIComponent(token)}`, {
+        newPassword: PASSWORD,
+      });
+      expect(same.status).toBe(400);
+      expect(same.body.code).toBe(PASSWORD_UNCHANGED.code);
+      const fresh = await post(`/api/auth/reset-password?token=${encodeURIComponent(token)}`, {
+        newPassword: "A-brand-new-password-4",
+      });
+      expect(fresh.status).toBe(200);
+    });
+
+    it("counts each refusal toward the limit of 5 resets in 15 minutes", async () => {
+      await createVerifiedUser("ana@example.com");
+      const token = await resetLinkFor("ana@example.com");
+      for (let i = 0; i < 5; i += 1) {
+        const same = await post("/api/auth/reset-password", { token, newPassword: PASSWORD });
+        expect(same.body.code).toBe(PASSWORD_UNCHANGED.code);
+      }
+      const sixth = await post("/api/auth/reset-password", { token, newPassword: PASSWORD });
+      expect(sixth.status).toBe(429);
+    });
+
+    it("lets a reset through for an account with no stored password, since nothing can match", async () => {
+      const { userId } = await createVerifiedUser("ana@example.com");
+      const token = await resetLinkFor("ana@example.com");
+      await prisma.account.updateMany({
+        where: { userId, providerId: "credential" },
+        data: { password: null },
+      });
+      const reset = await post("/api/auth/reset-password", { token, newPassword: PASSWORD });
+      expect(reset.status).toBe(200);
+      expect((await signIn("ana@example.com", PASSWORD)).status).toBe(200);
+    });
+
+    it("does not count as proof of the mailbox when it is refused", async () => {
+      await signUp("ana@example.com");
+      const token = await resetLinkFor("ana@example.com");
+      const same = await post("/api/auth/reset-password", { token, newPassword: PASSWORD });
+      expect(same.status).toBe(400);
+      const user = await prisma.user.findUniqueOrThrow({ where: { email: "ana@example.com" } });
+      expect(user.emailVerified).toBe(false);
+    });
+
+    it("is compared with the account the link belongs to, and nobody else's", async () => {
+      // Ben comes first, so a check that took the first account it found would take his.
+      const bensPassword = "Bens-own-password-8";
+      await signUp("ben@example.com", { name: "Ben", password: bensPassword });
+      await createVerifiedUser("ana@example.com");
+      const token = await resetLinkFor("ana@example.com");
+
+      const same = await post("/api/auth/reset-password", { token, newPassword: PASSWORD });
+      expect(same.status).toBe(400);
+      expect(same.body.code).toBe(PASSWORD_UNCHANGED.code);
+
+      // Ben's password is not Ana's, so it is a new one for her.
+      const other = await post("/api/auth/reset-password", { token, newPassword: bensPassword });
+      expect(other.status).toBe(200);
+      expect((await signIn("ana@example.com", bensPassword)).status).toBe(200);
+    });
+
+    it("is answered like any bad link when the link is unknown or expired, without checking the password", async () => {
+      await createVerifiedUser("ana@example.com");
+      const token = await resetLinkFor("ana@example.com");
+      const context = await auth.$context;
+      const verify = vi.spyOn(context.password, "verify");
+      // The spy sees the check when the link is good, so its silence below means something.
+      const same = await post("/api/auth/reset-password", { token, newPassword: PASSWORD });
+      expect(same.body.code).toBe(PASSWORD_UNCHANGED.code);
+      expect(verify).toHaveBeenCalledTimes(1);
+      verify.mockClear();
+
+      const unknown = await post("/api/auth/reset-password", {
+        token: `${token}x`,
+        newPassword: PASSWORD,
+      });
+      expect(unknown.status).toBe(400);
+      expect(unknown.body.code).toBe("INVALID_TOKEN");
+
+      await prisma.verification.updateMany({ data: { expiresAt: new Date(Date.now() - 60_000) } });
+      const expired = await post("/api/auth/reset-password", { token, newPassword: PASSWORD });
+      expect(expired.status).toBe(400);
+      expect(expired.body.code).toBe("INVALID_TOKEN");
+
+      expect(verify).not.toHaveBeenCalled();
+    });
   });
 
   it("refuses a link that has expired", async () => {
@@ -501,10 +765,10 @@ describe("password reset", () => {
     await prisma.verification.updateMany({ data: { expiresAt: new Date(Date.now() - 60_000) } });
     const response = await post("/api/auth/reset-password", {
       token,
-      newPassword: "long-enough-password",
+      newPassword: "Long-enough-password-7",
     });
     expect(response.status).toBe(400);
-    expect((await signIn("ana@example.com", "long-enough-password")).status).toBe(401);
+    expect((await signIn("ana@example.com", "Long-enough-password-7")).status).toBe(401);
   });
 
   it("ignores an address header that the client sends itself", async () => {

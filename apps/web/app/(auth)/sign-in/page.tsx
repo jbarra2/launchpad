@@ -16,13 +16,16 @@ const NOTICES: Record<string, string> = {
 
 // A verification link that fails lands here with `error=` added to the notice it was given.
 const LINK_ERRORS: Record<string, string> = {
-  TOKEN_EXPIRED: "That link has expired. Sign in, and we will send you a new one.",
-  INVALID_TOKEN: "That link is not valid. Sign in, and we will send you a new one if you need it.",
+  // Signing in with the right password mails a new link, though the answer itself is the same as
+  // for a wrong password, so these do not promise that signing in will work.
+  TOKEN_EXPIRED: "That link has expired. Sign in with your password to get a new link.",
+  INVALID_TOKEN:
+    "That link is not valid. Sign in with your password to get a new link if you need one.",
   USER_NOT_FOUND: "That link is for an account that no longer exists. Create a new account.",
 };
 
 const LINK_FAILED =
-  "That link did not work. Sign in, and we will send you a new one if you need it.";
+  "That link did not work. Sign in with your password to get a new link if you need one.";
 
 function pick(list: Record<string, string>, key: string | undefined): string | undefined {
   return key && Object.hasOwn(list, key) ? list[key] : undefined;

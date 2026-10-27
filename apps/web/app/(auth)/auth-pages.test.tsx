@@ -31,7 +31,7 @@ async function signInWith(params: Params) {
   render(await SignInPage(props(params) as never));
   answerWith(200, { user: { id: "u1" } });
   type("Email", "ana@example.com");
-  type("Password", "a-long-enough-password");
+  type("Password", "A-long-enough-password-1");
   submit("Sign in");
 }
 
@@ -79,8 +79,11 @@ describe("the sign-in page", () => {
   });
 
   it.each([
-    ["TOKEN_EXPIRED", "That link has expired."],
-    ["INVALID_TOKEN", "That link is not valid."],
+    ["TOKEN_EXPIRED", "That link has expired. Sign in with your password to get a new link."],
+    [
+      "INVALID_TOKEN",
+      "That link is not valid. Sign in with your password to get a new link if you need one.",
+    ],
     ["USER_NOT_FOUND", "That link is for an account that no longer exists."],
   ])(
     "says a %s link failed, even though the link also carried the confirmed notice",
@@ -171,15 +174,23 @@ describe("the reset page after a reload", () => {
 describe("the check-email and forgot-password pages", () => {
   it("send a signed-in person to the pad from check-email", async () => {
     session.user = { id: "u1", name: "Ana", email: "ana@example.com" };
-    await expect(CheckEmailPage(props({}) as never)).rejects.toThrow(/^redirect:\/pad$/);
+    await expect(CheckEmailPage()).rejects.toThrow(/^redirect:\/pad$/);
   });
 
-  it("explain an unconfirmed address only when sign-in sent the person", async () => {
-    const { unmount } = render(await CheckEmailPage(props({ reason: "unverified" }) as never));
-    expect(screen.getByText(/not confirmed yet/)).toBeInTheDocument();
+  it("say the same thing on check-email whatever the page address holds", async () => {
+    // Nothing on the page may depend on whether an address has an account. The page takes no
+    // props, so an old link that still carries a reason cannot change it.
+    expect(CheckEmailPage.length).toBe(0);
+    // React numbers the ids it makes in the order things render, so those are set aside.
+    const html = (container: HTMLElement) => container.innerHTML.replace(/_r_\w+_/g, "id");
+    // Next hands every page its props, so the page is given an address with a reason, as Next would.
+    const withProps = CheckEmailPage as (props: unknown) => ReturnType<typeof CheckEmailPage>;
+    const { container, unmount } = render(await withProps(props({ reason: "unverified" })));
+    const withReason = html(container);
     unmount();
-    render(await CheckEmailPage(props({}) as never));
-    expect(screen.queryByText(/not confirmed yet/)).toBeNull();
+    const { container: plain } = render(await CheckEmailPage());
+    expect(screen.getByText(/We sent you a message/)).toBeInTheDocument();
+    expect(html(plain)).toBe(withReason);
   });
 
   it("render with no axe violations", async () => {

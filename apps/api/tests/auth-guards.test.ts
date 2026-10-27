@@ -94,7 +94,7 @@ describe("validateAuthBody", () => {
         {
           name: padded,
           email: "ana@example.com",
-          password: "a-long-enough-password",
+          password: "A-long-enough-password-1",
           callbackURL: VERIFIED_LANDING,
         },
         undefined,
@@ -136,12 +136,12 @@ describe("validateAuthBody", () => {
     expect(() =>
       validateAuthBody(
         "/reset-password",
-        { newPassword: "a-long-enough-password" },
+        { newPassword: "A-long-enough-password-1" },
         { token: "abc" },
       ),
     ).not.toThrow();
     expect(() =>
-      validateAuthBody("/reset-password", { newPassword: "a-long-enough-password" }, undefined),
+      validateAuthBody("/reset-password", { newPassword: "A-long-enough-password-1" }, undefined),
     ).toThrow();
   });
 });

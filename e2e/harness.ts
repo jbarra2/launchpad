@@ -83,9 +83,10 @@ export function redact(text: string): string {
     .replace(/\/reset-password\/[^?\s]+/g, "/reset-password/[redacted]");
 }
 
-export const MAIL_LINE = /^\[mail\] (email-verification|password-reset) link for (\S+): (\S+)$/;
+export const MAIL_LINE =
+  /^\[mail\] (email-verification|password-reset|account-exists) link for (\S+): (\S+)$/;
 
-export type MailKind = "email-verification" | "password-reset";
+export type MailKind = "email-verification" | "password-reset" | "account-exists";
 
 export interface Stack {
   apiOrigin: string;

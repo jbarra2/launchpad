@@ -298,3 +298,62 @@ Settings at every width. The sign-in path also gets an end-to-end test over HTTP
   working Tab order.
 - `npm run verify`, `npm run build`, and `npm run test:e2e` pass, with 553 tests (367 before) and
   12 end-to-end tests. No package was added or changed.
+
+## 7. Account fixes after the first local run (Claude Code)
+
+**Asked:**
+
+After trying the app locally: signing up again with an address that already has an account looked
+like it made a second account. Hide most of the email on Settings, and do the same for any
+sensitive value shown later, with the name left as it is. A password reset should not accept the
+current password, though only the most recent one needs checking. New passwords should include an
+uppercase letter, a lowercase letter, and a number, and no spaces.
+
+**What came back / what changed:**
+
+- A second sign-up with the same address never made a second account: the address is unique, and
+  the answer is the same as for a new address so that it does not show who has an account. The
+  owner of the address is now mailed a notice instead: the sign-in page for a confirmed address,
+  and the reset page for one that was never confirmed, since that account may be someone else's
+  and a reset replaces their password. The notice is never a confirmation link. Notices have a
+  count of their own, one per address in 15 minutes, so repeated sign-ups can neither flood a
+  mailbox nor use up the reset and confirmation links the owner asks for. The check-email screen
+  after sign-up says what happens in both cases, in the same words, and what to do if nothing
+  comes.
+- Sign-in answers an account whose address is not confirmed with exactly the answer a wrong
+  password gets, and still mails a new link to the address. Before, someone could sign up with
+  another person's address and a password of their own, then sign in with it: "not confirmed" meant
+  the address had no account, and "wrong password" meant it had one. The sign-in message is now
+  true in both cases, the notices on the sign-in page after a failed link say to sign in with the
+  password to get a new one, and the separate "not confirmed yet" screen is gone.
+- Settings shows the email masked, such as `an•••@e•••.com`. It is masked on the server, so the
+  full address is not in the page, and a screen reader hears that it is partly hidden. A new rule
+  says any sensitive value shown on a page later is masked the same way.
+- New passwords have 12 to 128 characters, an uppercase letter, a lowercase letter, and a number.
+  Spaces of any kind are refused, and so are control characters and characters that show as nothing
+  or as a blank, while the joiners inside an emoji or a script are kept. Capitals, small letters,
+  and digits from any script that has them count. The hint under the field lists the rules, and one
+  message names everything a password is missing. Sign-in and account deletion do not judge a
+  password, so an account made before the rules still works.
+- A reset to the password the account already has is refused at the field with its own message.
+  The link, the sessions, and the account stay as they were, so the person can type a different
+  one. The check compares only with the account the link belongs to, and only for a link that is
+  still good, whether its token comes in the body or the address.
+- Accessibility: a form error on a field that already has focus, as after pressing Enter in it, is
+  now announced, on every sign-in screen.
+- Tests were written first for each change. Every protection was broken on purpose, one at a time
+  (87 breakages), and a test caught each one. One more proved that the end-to-end test catches the
+  full address reaching the Settings page's data. A break that no test noticed showed a line that
+  had no effect, which was removed.
+- Three rounds of independent review, each a security review, a review of the tests, and a code
+  review, by fresh agents. The first found that signing up and then signing in could show whether
+  an address had an account, and that notices shared a mail count with links, so a stranger could
+  use up an owner's reset links. The second found that the sign-in message was untrue for an
+  unconfirmed address, and that the test of the sign-in answer did not compare it byte for byte.
+  The third found nothing serious. Smaller points from each round were fixed too, each with a test.
+- Checked live in a real browser at 390, 768, and 1280 pixels wide, in light and dark: sign-up,
+  sign-in with and without a failed-link notice, check-email, the reset page, and Settings, 36
+  combinations with no sideways scroll, no console errors, no failed requests, no axe findings with
+  contrast, 44-pixel tap targets, and a working Tab order.
+- `npm run verify`, `npm run build`, and `npm run test:e2e` pass, with 710 tests (553 before) and
+  14 end-to-end tests. No package was added or changed.

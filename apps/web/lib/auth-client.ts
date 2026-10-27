@@ -49,8 +49,10 @@ export const TOO_MANY_MESSAGE =
   "That is too many tries in a short time. Wait a few minutes and try again.";
 
 const MESSAGES: Record<string, string> = {
-  INVALID_EMAIL_OR_PASSWORD: "That email and password do not match.",
-  EMAIL_NOT_VERIFIED: "Confirm your email address first. We sent you a new link.",
+  // The API gives an account whose address is not confirmed, with the right password, this same
+  // answer, so the words have to be true for both.
+  INVALID_EMAIL_OR_PASSWORD:
+    "We could not sign you in with that email and password. If you signed up recently, confirm your address with the newest link we emailed you.",
   INVALID_TOKEN: "That reset link has expired or was already used. Ask for a new one.",
   INVALID_ORIGIN: "Reload this page and try again.",
   MISSING_OR_NULL_ORIGIN: "Reload this page and try again.",

@@ -6,7 +6,7 @@ import { prisma } from "../../src/lib/prisma.js";
 
 export const WEB_ORIGIN = "http://localhost:3100";
 // Made up, and only ever used by these tests.
-export const PASSWORD = "correct-horse-battery-staple"; // public-check: allow secret
+export const PASSWORD = "Correct-horse-battery-9"; // public-check: allow secret
 export const app = createApp();
 
 interface Options {

@@ -1,8 +1,10 @@
 import { env } from "../config/env.js";
 
-export type MailKind = "email-verification" | "password-reset";
+// "account-exists" tells the owner of an address that someone tried to sign up with it.
+export type MailKind = "email-verification" | "password-reset" | "account-exists";
 
-// Each message is a link. The link carries a single-use token, so it is a way into an account.
+// Each message is a link. A verification or reset link carries a single-use token, so it is a way
+// into an account. The account-exists link is the sign-in or reset page, with no token.
 export interface Mail {
   kind: MailKind;
   to: string;
@@ -89,12 +91,24 @@ export function throttleMailer(
   };
 }
 
-const throttled = throttleMailer(makeMailer(env.NODE_ENV, env.MAIL_TRANSPORT), {
-  max: 5,
-  windowMs: 15 * 60 * 1000,
-});
+const transport = makeMailer(env.NODE_ENV, env.MAIL_TRANSPORT);
+const WINDOW_MS = 15 * 60 * 1000;
 
+const throttled = throttleMailer(transport, { max: 5, windowMs: WINDOW_MS });
+
+// Notices that someone tried to sign up with an address have a count of their own, one per address
+// in the window. A stranger can cause them, so they must never use up the links the owner asks for,
+// and the owner needs only one to know.
+const noticesThrottled = throttleMailer(transport, { max: 1, windowMs: WINDOW_MS });
+
+/** Verification and reset links. */
 export const mailer: Mailer = throttled;
 
+/** Notices a stranger can cause, such as a sign-up with an address that has an account. */
+export const noticeMailer: Mailer = noticesThrottled;
+
 /** For tests: forgets how many messages each address has had. */
-export const resetMailThrottle = (): void => throttled.reset();
+export const resetMailThrottle = (): void => {
+  throttled.reset();
+  noticesThrottled.reset();
+};

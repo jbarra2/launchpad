@@ -13,6 +13,13 @@ This app holds people's project ideas and their Claude API keys, and the reposit
 - Decrypt a key only inside the call that needs it. Make a new Anthropic client for each call, and never keep a client or a key in module state.
 - Never pass an SDK error message through to the user. Map the error class to a sentence written for the user (see `http-errors.md`).
 
+## On screen
+
+- A sensitive value shown to its owner is masked, and the page masks it on the server, so the full value is never in the HTML or handed to a component in the browser. An email address uses `maskEmail` from `apps/web/lib/mask.ts` (`an•••@e•••.com`). A saved key shows its last 4 characters only. A name is not masked.
+- A new sensitive field that reaches a page gets a mask in `lib/mask.ts` and a test that the full value is not in the rendered page.
+- The address a person has just typed may be shown back to them in full, in the tab they typed it in and until they sign in there, so they can spot a typo, as check-email does from this tab's storage.
+- Masking decides what a page shows, not who may read the value. The owner's own API answers, such as `/api/me`, still carry it, and access is still decided by the session.
+
 ## Access
 
 - Deny by default. Every route needs a session except `/health` and `/api/auth/*`, and each exception is deliberate.

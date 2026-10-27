@@ -68,7 +68,9 @@ describe("authErrorMessage", () => {
     expect(authErrorMessage({ ok: false, status: 429 }, fallback)).toBe(TOO_MANY_MESSAGE);
     expect(
       authErrorMessage({ ok: false, status: 401, code: "INVALID_EMAIL_OR_PASSWORD" }, fallback),
-    ).toBe("That email and password do not match.");
+    ).toBe(
+      "We could not sign you in with that email and password. If you signed up recently, confirm your address with the newest link we emailed you.",
+    );
     expect(authErrorMessage({ ok: false, status: 400, code: "INVALID_TOKEN" }, fallback)).toBe(
       "That reset link has expired or was already used. Ask for a new one.",
     );

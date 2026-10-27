@@ -10,9 +10,10 @@ import {
   withoutTokens,
 } from "./auth-guards.js";
 import { authLog } from "./auth-log.js";
-import { mailer } from "./mailer.js";
+import { mailer, noticeMailer } from "./mailer.js";
 import { prisma } from "./prisma.js";
 import { lockSignUp, unlockSignUp } from "./sign-up-lock.js";
+import { refuseUnchangedPassword } from "./unchanged-password.js";
 
 /** Better Auth counts rate limits by the address in this header, and by nothing else. */
 export const CLIENT_IP_HEADER = "x-launchpad-client-ip";
@@ -23,6 +24,21 @@ export const trustedOrigin = new URL(env.BETTER_AUTH_URL).origin;
 const MINUTE = 60;
 const HOUR = 60 * MINUTE;
 const DAY = 24 * HOUR;
+
+// Sign-in checks the password before it checks that the address is confirmed. "Not confirmed"
+// would then tell someone who signed up with another person's address, and a password of their
+// own, that the address had no account before, since an address that had one keeps its own
+// password. So that answer is the same as for a wrong password. Better Auth has already mailed a
+// new link to the address by then, so its owner can still confirm it.
+//
+// It is a whole Response because Better Auth keeps the first error's status when an after hook
+// swaps in another error, and sends a Response as it is.
+function wrongPasswordAnswer(): Response {
+  return new Response(
+    JSON.stringify({ message: "Invalid email or password", code: "INVALID_EMAIL_OR_PASSWORD" }),
+    { status: 401, headers: { "Content-Type": "application/json" } },
+  );
+}
 
 export const auth = betterAuth({
   appName: "Launchpad",
@@ -51,6 +67,19 @@ export const auth = betterAuth({
     // Clicking the link proves the person has the mailbox, which is what verification means.
     onPasswordReset: async ({ user }) => {
       await prisma.user.update({ where: { id: user.id }, data: { emailVerified: true } });
+    },
+    // A sign-up for an address that has an account answers like a new one, so it does not show who
+    // has an account. The owner is told instead, at the address on the account. A confirmed account
+    // gets the sign-in page. An unconfirmed one may be someone else's, made with this address and a
+    // password of their own, so it gets the reset page: a reset proves the mailbox and replaces that
+    // password, where a confirmation link would confirm the account for them. Notices have their
+    // own limit per address, so however many a stranger causes, the owner's own links still go.
+    onExistingUserSignUp: async ({ user }) => {
+      await noticeMailer.send({
+        kind: "account-exists",
+        to: user.email,
+        url: `${trustedOrigin}${user.emailVerified ? "/sign-in" : "/forgot-password"}`,
+      });
     },
   },
 
@@ -126,6 +155,13 @@ export const auth = betterAuth({
       if (ctx.path === "/sign-up/email" && ctx.request && typeof body?.email === "string") {
         await lockSignUp(ctx.request, body.email.toLowerCase());
       }
+      if (
+        ctx.path === "/reset-password" &&
+        typeof body?.token === "string" &&
+        typeof body.newPassword === "string"
+      ) {
+        await refuseUnchangedPassword(ctx.context, body.token, body.newPassword);
+      }
       // The trimmed copy replaces the raw body, so a name padded with spaces keeps to its cap. The
       // schemas are strict, so no field comes along that they do not list.
       if (body) {
@@ -137,6 +173,13 @@ export const auth = betterAuth({
         unlockSignUp(ctx.request);
       }
       const returned = ctx.context.returned;
+      if (
+        ctx.path === "/sign-in/email" &&
+        isAPIError(returned) &&
+        returned.body?.code === "EMAIL_NOT_VERIFIED"
+      ) {
+        return wrongPasswordAnswer();
+      }
       if (isAPIError(returned) || returned === null || typeof returned !== "object") {
         return;
       }

@@ -1,10 +1,11 @@
 "use client";
 
-import { PASSWORD_MAX, PASSWORD_MIN, signUpBody } from "@launchpad/shared";
+import { PASSWORD_HINT, signUpBody } from "@launchpad/shared";
 import Link from "next/link";
 import { useCallback, useRef, useState, type FormEvent } from "react";
 import { flushSync } from "react-dom";
 import { FormField } from "@/components/a11y/form-field";
+import { useAnnouncer } from "@/components/a11y/live-region";
 import { FormAlert, useFormAlert } from "@/components/form-alert";
 import { VERIFIED_LANDING, authErrorMessage, authPost } from "@/lib/auth-client";
 import { navigate } from "@/lib/navigate";
@@ -34,6 +35,7 @@ export function SignUpForm() {
     }, []),
   );
   const alert = useFormAlert();
+  const announce = useAnnouncer();
 
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -57,7 +59,7 @@ export function SignUpForm() {
       const found = fieldErrors(parsed.error);
       // In the page before focus moves, so the error is read with the field.
       flushSync(() => setErrors(found));
-      focusFirstError(form, found, ORDER);
+      focusFirstError(form, found, ORDER, announce);
       return;
     }
     setErrors({});
@@ -94,11 +96,7 @@ export function SignUpForm() {
           spellCheck={false}
         />
       </FormField>
-      <FormField
-        label="Password"
-        hint={`${PASSWORD_MIN} to ${PASSWORD_MAX} characters.`}
-        error={errors.password}
-      >
+      <FormField label="Password" hint={PASSWORD_HINT} error={errors.password}>
         <input name="password" type="password" autoComplete="new-password" />
       </FormField>
       <button type="submit" className="button" aria-disabled={busy || undefined}>

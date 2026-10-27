@@ -10,7 +10,7 @@ import { WEB_ORIGIN, repoRoot, startStack, type Stack } from "./harness.js";
 let stack: Stack;
 const email = "ana@example.com";
 // Made up, and only ever used by this test.
-const password = "correct-horse-battery-staple"; // public-check: allow secret
+const password = "Correct-horse-battery-9"; // public-check: allow secret
 
 beforeAll(async () => {
   stack = await startStack();
@@ -101,6 +101,14 @@ describe("a new person", () => {
     expect(html).toContain("No ideas yet.");
   });
 
+  it("sees only part of the address on Settings, and the full one is nowhere in the page", async () => {
+    const response = await get("/settings", cookie);
+    expect(response.status).toBe(200);
+    const html = await response.text();
+    expect(html).toContain("a•••@e•••.com");
+    expect(html.toLowerCase()).not.toContain(email);
+  });
+
   it("is sent on to the pad, not to another site, when signed in on the sign-in page", async () => {
     // The second one only becomes //evil.example once "." is resolved.
     for (const next of ["%2F%2Fevil.example", "%2F.%2F%2Fevil.example%2Flogin"]) {
@@ -138,8 +146,23 @@ describe("a new person", () => {
   });
 });
 
+describe("someone who signs up with an address that already has an account", () => {
+  it("sees the same answer as a new address, and the owner is sent a notice to sign in", async () => {
+    const response = await post("/api/auth/sign-up/email", {
+      name: "Someone Else",
+      email,
+      password: "Someone-elses-password-1", // public-check: allow secret
+      callbackURL: VERIFIED_LANDING,
+    });
+    expect(response.status).toBe(200);
+    expect(response.headers.getSetCookie()).toEqual([]);
+    const link = await stack.mail("account-exists", email);
+    expect(link).toBe(`${WEB_ORIGIN}/sign-in`);
+  });
+});
+
 describe("a person who forgot their password", () => {
-  const newPassword = "a-different-long-password"; // public-check: allow secret
+  const newPassword = "A-different-long-password-8"; // public-check: allow secret
 
   it("asks for a link, opens it, sets a new password, and signs in with only the new one", async () => {
     const forgot = await post("/api/auth/request-password-reset", {
@@ -161,6 +184,11 @@ describe("a person who forgot their password", () => {
     const page = await get(resetPage.pathname + resetPage.search);
     expect(page.status).toBe(200);
     expect(await page.text()).toContain("Type it again");
+
+    // The password they already have is not a new one, and trying it leaves the link usable.
+    const same = await post("/api/auth/reset-password", { token, newPassword: password });
+    expect(same.status).toBe(400);
+    expect(((await same.json()) as { code?: string }).code).toBe("PASSWORD_UNCHANGED");
 
     const reset = await post("/api/auth/reset-password", { token, newPassword });
     expect(reset.status).toBe(200);

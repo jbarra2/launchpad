@@ -2,15 +2,15 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { CheckEmail } from "@/components/auth/check-email";
 import { AFTER_SIGN_IN } from "@/lib/safe-path";
-import { single } from "@/lib/search-params";
 import { peekSessionUser } from "@/lib/session";
 
 export const metadata: Metadata = { title: "Check your email" };
 
-export default async function CheckEmailPage({ searchParams }: PageProps<"/check-email">) {
+// The page reads nothing from its address, so nothing on it can depend on whether an address has an
+// account.
+export default async function CheckEmailPage() {
   if (await peekSessionUser()) {
     redirect(AFTER_SIGN_IN);
   }
-  const params = await searchParams;
-  return <CheckEmail unverified={single(params.reason) === "unverified"} />;
+  return <CheckEmail />;
 }

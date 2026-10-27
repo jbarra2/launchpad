@@ -5,10 +5,11 @@ import Link from "next/link";
 import { useCallback, useRef, useState, type FormEvent } from "react";
 import { flushSync } from "react-dom";
 import { FormField } from "@/components/a11y/form-field";
+import { useAnnouncer } from "@/components/a11y/live-region";
 import { FormAlert, useFormAlert } from "@/components/form-alert";
 import { VERIFIED_LANDING, authErrorMessage, authPost } from "@/lib/auth-client";
 import { navigate } from "@/lib/navigate";
-import { forgetPendingEmail, rememberPendingEmail } from "@/lib/pending-email";
+import { forgetPendingEmail } from "@/lib/pending-email";
 import {
   fieldErrors,
   focusFirstError,
@@ -35,6 +36,7 @@ export function SignInForm({ next }: { next: string }) {
     }, []),
   );
   const alert = useFormAlert();
+  const announce = useAnnouncer();
 
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -58,7 +60,7 @@ export function SignInForm({ next }: { next: string }) {
       const found = fieldErrors(parsed.error);
       // In the page before focus moves, so the error is read with the field.
       flushSync(() => setErrors(found));
-      focusFirstError(form, found, ORDER);
+      focusFirstError(form, found, ORDER, announce);
       return;
     }
     setErrors({});
@@ -74,11 +76,6 @@ export function SignInForm({ next }: { next: string }) {
     }
     pending.current = false;
     setBusy(false);
-    if (result.code === "EMAIL_NOT_VERIFIED") {
-      rememberPendingEmail(parsed.data.email);
-      navigate("/check-email?reason=unverified");
-      return;
-    }
     alert.show(
       authErrorMessage(result, "We could not sign you in. Try again."),
       result.code === "INVALID_EMAIL_OR_PASSWORD"

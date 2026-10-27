@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { SignOutButton } from "@/components/sign-out-button";
+import { maskEmail } from "@/lib/mask";
 import { requireUser } from "@/lib/session";
 
 export const metadata: Metadata = { title: "Settings" };
@@ -15,7 +16,11 @@ export default async function SettingsPage() {
           <dt>Name</dt>
           <dd>{user.name}</dd>
           <dt>Email</dt>
-          <dd>{user.email}</dd>
+          {/* Masked here on the server, so the full address never reaches the browser. */}
+          <dd>
+            <span>{maskEmail(user.email)}</span>{" "}
+            <span className="visually-hidden">(partly hidden)</span>
+          </dd>
         </dl>
         <SignOutButton />
       </section>

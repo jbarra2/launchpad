@@ -1,9 +1,15 @@
 "use client";
 
-import { PASSWORD_MAX, PASSWORD_MIN, RESET_PAGE, resetPasswordBody } from "@launchpad/shared";
+import {
+  PASSWORD_HINT,
+  PASSWORD_UNCHANGED,
+  RESET_PAGE,
+  resetPasswordBody,
+} from "@launchpad/shared";
 import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
 import { flushSync } from "react-dom";
 import { FormField } from "@/components/a11y/form-field";
+import { useAnnouncer } from "@/components/a11y/live-region";
 import { FormAlert, useFormAlert } from "@/components/form-alert";
 import { authErrorMessage, authPost } from "@/lib/auth-client";
 import { navigate } from "@/lib/navigate";
@@ -32,6 +38,7 @@ export function ResetPasswordForm({ token }: { token: string }) {
     }, []),
   );
   const alert = useFormAlert();
+  const announce = useAnnouncer();
 
   // The token leaves the address bar and the list of pages in this tab's history, so it is not
   // sent on as a Referer or shown in that list later. It waits a tick: Next's router
@@ -62,7 +69,7 @@ export function ResetPasswordForm({ token }: { token: string }) {
     if (!parsed.success || found.confirm) {
       // In the page before focus moves, so the error is read with the field.
       flushSync(() => setErrors(found));
-      focusFirstError(form, found, ORDER);
+      focusFirstError(form, found, ORDER, announce);
       if (found.token) {
         alert.show(found.token);
       }
@@ -80,6 +87,13 @@ export function ResetPasswordForm({ token }: { token: string }) {
     }
     pending.current = false;
     setBusy(false);
+    if (result.code === PASSWORD_UNCHANGED.code) {
+      // The link is still good, so the person only needs to type a different password.
+      const unchanged = { newPassword: PASSWORD_UNCHANGED.message };
+      flushSync(() => setErrors(unchanged));
+      focusFirstError(form, unchanged, ORDER, announce);
+      return;
+    }
     alert.show(
       authErrorMessage(result, "We could not change the password. Try again."),
       result.code === "INVALID_TOKEN"
@@ -91,11 +105,7 @@ export function ResetPasswordForm({ token }: { token: string }) {
   return (
     <form method="post" noValidate aria-label="Set a new password" onSubmit={onSubmit}>
       <FormAlert id="reset-alert" alert={alert.alert} alertRef={alert.ref} />
-      <FormField
-        label="New password"
-        hint={`${PASSWORD_MIN} to ${PASSWORD_MAX} characters.`}
-        error={errors.newPassword}
-      >
+      <FormField label="New password" hint={PASSWORD_HINT} error={errors.newPassword}>
         <input name="newPassword" type="password" autoComplete="new-password" />
       </FormField>
       <FormField label="Type it again" error={errors.confirm}>
