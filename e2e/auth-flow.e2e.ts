@@ -3,6 +3,7 @@ import path from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { RESET_PAGE, VERIFIED_LANDING } from "../packages/shared/src/auth.js";
 import { WEB_ORIGIN, repoRoot, startStack, type Stack } from "./harness.js";
+import { get, post, sessionCookieFrom } from "./http.js";
 
 // The path a new person takes, through the built web app exactly as a browser reaches it: sign up,
 // open the link from the console, sign in, and land on an empty pad.
@@ -20,43 +21,12 @@ afterAll(async () => {
   await stack?.stop();
 });
 
-function post(pathname: string, body: unknown, cookie?: string) {
-  return fetch(`${WEB_ORIGIN}${pathname}`, {
-    method: "POST",
-    headers: {
-      "content-type": "application/json",
-      origin: WEB_ORIGIN,
-      ...(cookie ? { cookie } : {}),
-    },
-    body: JSON.stringify(body),
-    redirect: "manual",
-  });
-}
-
-function get(pathOrUrl: string, cookie?: string) {
-  return fetch(new URL(pathOrUrl, WEB_ORIGIN), {
-    headers: cookie ? { cookie } : {},
-    redirect: "manual",
-  });
-}
-
 /** Where a redirect sends the browser, as a path and query. */
 function target(response: Response): string {
   const url = new URL(response.headers.get("location") ?? "", WEB_ORIGIN);
   // A redirect to another host would otherwise pass on its path alone.
   expect(url.origin).toBe(WEB_ORIGIN);
   return url.pathname + url.search;
-}
-
-function sessionCookieFrom(response: Response): string {
-  const cookie = response.headers
-    .getSetCookie()
-    .map((line) => line.split(";")[0]!)
-    .find((pair) => pair.startsWith("launchpad.session_token="));
-  if (!cookie) {
-    throw new Error("No session cookie was set.");
-  }
-  return cookie;
 }
 
 describe("a new person", () => {

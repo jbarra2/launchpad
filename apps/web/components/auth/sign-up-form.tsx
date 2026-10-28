@@ -1,9 +1,10 @@
 "use client";
 
-import { PASSWORD_HINT, signUpBody } from "@launchpad/shared";
+import { measuredLength, NAME_MAX, PASSWORD_HINT, signUpBody } from "@launchpad/shared";
 import Link from "next/link";
-import { useCallback, useRef, useState, type FormEvent } from "react";
+import { useCallback, useLayoutEffect, useRef, useState, type FormEvent } from "react";
 import { flushSync } from "react-dom";
+import { textCount } from "@/components/a11y/field-count";
 import { FormField } from "@/components/a11y/form-field";
 import { useAnnouncer } from "@/components/a11y/live-region";
 import { FormAlert, useFormAlert } from "@/components/form-alert";
@@ -22,6 +23,10 @@ const ORDER = ["name", "email", "password"];
 
 export function SignUpForm() {
   const [errors, setErrors] = useState<FieldErrors>({});
+  const [nameLength, setNameLength] = useState(0);
+  // The count is announced only once the person has typed here.
+  const [typed, setTyped] = useState(false);
+  const formRef = useRef<HTMLFormElement>(null);
   const [busy, setBusy] = useState(false);
   const pending = useRef(false);
   // Where the form went once it succeeded. A press after that, if the page load was stopped, goes
@@ -36,6 +41,21 @@ export function SignUpForm() {
   );
   const alert = useFormAlert();
   const announce = useAnnouncer();
+
+  // The name box can hold text before React does: typed before the page finished loading, or put
+  // back by the browser on Back. Its count starts from what the box holds.
+  useLayoutEffect(() => {
+    setNameLength(measuredLength(textOf(new FormData(formRef.current ?? undefined), "name")));
+  }, []);
+
+  function onName(value: string) {
+    setTyped(true);
+    setNameLength(measuredLength(value));
+    // Its error goes as soon as the name is right.
+    if (signUpBody.shape.name.safeParse(value).success) {
+      setErrors((last) => (last.name ? { ...last, name: undefined } : last));
+    }
+  }
 
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -81,10 +101,19 @@ export function SignUpForm() {
   }
 
   return (
-    <form method="post" noValidate aria-label="Create an account" onSubmit={onSubmit}>
+    <form ref={formRef} method="post" noValidate aria-label="Create an account" onSubmit={onSubmit}>
       <FormAlert id="sign-up-alert" alert={alert.alert} alertRef={alert.ref} />
-      <FormField label="Name" error={errors.name}>
-        <input name="name" type="text" autoComplete="name" />
+      <FormField
+        label="Name"
+        error={errors.name}
+        count={textCount(nameLength, NAME_MAX, "The name", !typed)}
+      >
+        <input
+          name="name"
+          type="text"
+          autoComplete="name"
+          onChange={(event) => onName(event.currentTarget.value)}
+        />
       </FormField>
       <FormField label="Email" error={errors.email}>
         <input

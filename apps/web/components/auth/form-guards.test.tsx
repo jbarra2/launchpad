@@ -6,6 +6,8 @@ import { ForgotPasswordForm } from "./forgot-password-form";
 import { ResetPasswordForm } from "./reset-password-form";
 import { SignInForm } from "./sign-in-form";
 import { SignUpForm } from "./sign-up-form";
+import { NewRocketForm } from "../rockets/new-rocket-form";
+import { PartForm } from "../rockets/part-form";
 import { fetchMock, submit, type } from "./test-helpers";
 
 vi.mock("@/lib/navigate", () => ({ navigate: vi.fn(), replaceLocation: vi.fn() }));
@@ -67,7 +69,30 @@ const forms: FormCase[] = [
     button: "Set the new password",
     busy: "Saving…",
   },
+  {
+    name: "new-idea",
+    form: () => <NewRocketForm />,
+    fill: () => {
+      type("Name", "Recipe Swap");
+      type("Pitch", "Trade family recipes.");
+    },
+    button: "Create idea",
+    busy: "Creating…",
+  },
+  {
+    name: "part",
+    form: () => <PartForm rocketId="c1" kind="fuel" />,
+    fill: () => {
+      type("Summary", "Cousins who share recipes.");
+      type("Points", "Photos get lost");
+    },
+    button: "Save the Fuel tank",
+    busy: "Saving…",
+  },
 ];
+
+// Every form's success answer: the sign-in forms read `user`, and a new idea reads its `id`.
+const SUCCESS = JSON.stringify({ user: { id: "u1" }, id: "cnew1" });
 
 beforeEach(() => {
   fetchMock.mockReset();
@@ -100,40 +125,45 @@ describe.each(forms)("the $name form", ({ form, fill, button, busy }) => {
   });
 });
 
-describe.each(forms.filter(({ name }) => ["sign-in", "sign-up", "reset-password"].includes(name)))(
-  "the $name form, brought back by the Back button",
-  ({ form, fill, button, busy }) => {
-    it("can be used again, not left waiting on the request it sent before", async () => {
-      fetchMock.mockResolvedValue(new Response(JSON.stringify({ user: { id: "u1" } })));
-      render(form());
-      fill();
-      submit(button);
-      // It went on to the next page, so it stays busy until the page is shown again.
-      await screen.findByRole("button", { name: busy });
-      const restored = new Event("pageshow");
-      Object.defineProperty(restored, "persisted", { value: true });
-      act(() => {
-        window.dispatchEvent(restored);
-      });
-      const again = await screen.findByRole("button", { name: button });
-      expect(again).not.toHaveAttribute("aria-disabled");
-      submit(button);
-      await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
+describe.each(
+  forms.filter(({ name }) =>
+    ["sign-in", "sign-up", "reset-password", "new-idea", "part"].includes(name),
+  ),
+)("the $name form, brought back by the Back button", ({ form, fill, button, busy }) => {
+  it("can be used again, not left waiting on the request it sent before", async () => {
+    // A new answer for each call, since a body can be read only once.
+    fetchMock.mockImplementation(async () => new Response(SUCCESS));
+    render(form());
+    fill();
+    submit(button);
+    // It went on to the next page, so it stays busy until the page is shown again.
+    await screen.findByRole("button", { name: busy });
+    const restored = new Event("pageshow");
+    Object.defineProperty(restored, "persisted", { value: true });
+    act(() => {
+      window.dispatchEvent(restored);
     });
-  },
-);
+    const again = await screen.findByRole("button", { name: button });
+    expect(again).not.toHaveAttribute("aria-disabled");
+    submit(button);
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
+  });
+});
 
 const destinations: Record<string, string> = {
   "sign-in": "/pad",
   "sign-up": "/check-email",
   "reset-password": "/sign-in?notice=password-reset",
+  "new-idea": "/rockets/cnew1?notice=created",
+  part: "/rockets/c1?saved=fuel",
 };
 
 describe.each(forms.filter(({ name }) => name in destinations))(
   "the $name form, after its page load was stopped",
   ({ name, form, fill, button, busy }) => {
     it("goes on again when pressed, without sending the request twice", async () => {
-      fetchMock.mockResolvedValue(new Response(JSON.stringify({ user: { id: "u1" } })));
+      // A new answer for each call, since a body can be read only once.
+      fetchMock.mockImplementation(async () => new Response(SUCCESS));
       render(form());
       fill();
       submit(button);

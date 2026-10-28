@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { SignInForm } from "@/components/auth/sign-in-form";
 import { AFTER_SIGN_IN, safeNextPath } from "@/lib/safe-path";
-import { single } from "@/lib/search-params";
+import { pick, single } from "@/lib/search-params";
 import { peekSessionUser } from "@/lib/session";
 
 export const metadata: Metadata = { title: "Sign in" };
@@ -26,10 +26,6 @@ const LINK_ERRORS: Record<string, string> = {
 
 const LINK_FAILED =
   "That link did not work. Sign in with your password to get a new link if you need one.";
-
-function pick(list: Record<string, string>, key: string | undefined): string | undefined {
-  return key && Object.hasOwn(list, key) ? list[key] : undefined;
-}
 
 export default async function SignInPage({ searchParams }: PageProps<"/sign-in">) {
   const params = await searchParams;

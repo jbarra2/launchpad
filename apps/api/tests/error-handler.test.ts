@@ -14,6 +14,7 @@ import {
   tooManyRequests,
   unauthorized,
 } from "../src/errors/http-error.js";
+import { Prisma } from "../src/generated/prisma/client.js";
 import { errorHandler } from "../src/middleware/error-handler.js";
 
 // A small app whose only route throws what the test gives it, behind the real error handler.
@@ -101,6 +102,15 @@ describe("errorHandler", () => {
     expect(log.mock.calls).toEqual([["Unexpected error: TypeError (P2002)"]]);
   });
 
+  it("answers an address it cannot read with the 404 for any missing page, and logs nothing", async () => {
+    const log = vi.spyOn(console, "error").mockImplementation(() => {});
+    const thrown = Object.assign(new URIError("Failed to decode param '%E0'"), { status: 400 });
+    const response = await request(appThatThrows(thrown)).get("/boom");
+    expect(response.status).toBe(404);
+    expect(response.body).toEqual({ error: "Nothing was found at that address." });
+    expect(log).not.toHaveBeenCalled();
+  });
+
   it("hands the error on when the response has already started", () => {
     const next = vi.fn();
     const thrown = new Error("late");
@@ -111,5 +121,61 @@ describe("errorHandler", () => {
       next as NextFunction,
     );
     expect(next).toHaveBeenCalledWith(thrown);
+  });
+});
+
+describe("a refusal from the database that a route did not catch", () => {
+  const INVALID = "Some of what you entered is not valid. Check it and try again.";
+  const CHANGED = "That changed while you were saving. Reload the page and try again.";
+  const GONE = "That is no longer there. Reload the page.";
+
+  // Shaped as Prisma 7 throws them through the Postgres adapter. The message and `meta` hold the
+  // refused row, which must never reach the person or the log.
+  function prismaError(code: string, originalCode?: string) {
+    return new Prisma.PrismaClientKnownRequestError(
+      "Database error. Failing row contains (secret-row-text)",
+      {
+        code,
+        clientVersion: "7",
+        meta: originalCode
+          ? { driverAdapterError: { cause: { originalCode, detail: "secret-row-text" } } }
+          : undefined,
+      },
+    );
+  }
+
+  it.each([
+    ["a value over a cap", "P2000", undefined, 400, INVALID],
+    ["a missing value", "P2011", undefined, 400, INVALID],
+    ["a failed check", "P2039", "23514", 400, INVALID],
+    ["a duplicate", "P2002", "23505", 409, CHANGED],
+    ["two writes that collided", "P2034", "40001", 409, CHANGED],
+    ["a row that is gone", "P2025", undefined, 404, GONE],
+    ["a missing parent row", "P2003", "23503", 404, GONE],
+  ] as const)(
+    "answers %s with %i and a sentence of its own",
+    async (_what, code, pg, status, sentence) => {
+      const log = vi.spyOn(console, "error").mockImplementation(() => {});
+      const response = await request(appThatThrows(prismaError(code, pg))).get("/boom");
+      expect(response.status).toBe(status);
+      expect(response.body).toEqual({ error: sentence });
+      expect(response.text).not.toContain("secret-row-text");
+      expect(response.text).not.toMatch(/P20|2351|Database error/);
+      expect(log).not.toHaveBeenCalled();
+    },
+  );
+
+  it("treats any other database error as a fault on our side, not as bad input", async () => {
+    const log = vi.spyOn(console, "error").mockImplementation(() => {});
+    for (const thrown of [
+      prismaError("P2039", "P0001"),
+      prismaError("P2039"),
+      prismaError("P1001"),
+    ]) {
+      const response = await request(appThatThrows(thrown)).get("/boom");
+      expect(response.status).toBe(500);
+      expect(response.text).not.toContain("secret-row-text");
+    }
+    expect(log.mock.calls.flat().join("\n")).not.toContain("secret-row-text");
   });
 });

@@ -2,8 +2,8 @@
 
 How to build [MASTER_PLAN.md](MASTER_PLAN.md) in three days. The master plan is the source of truth for _what_ and _why_. This file is the source of truth for _in what order, and by when_.
 
-- Last updated: 2026-10-26
-- Progress: Sprints 1 (2026-10-22), 2a (2026-10-23), 2b (2026-10-26), and 3 (2026-10-26) are done. Sprint 4 is in progress.
+- Last updated: 2026-10-27
+- Progress: Sprints 1 (2026-10-22), 2a (2026-10-23), 2b (2026-10-26), 3 (2026-10-26), and 4 (2026-10-27) are done. Sprints 5, 6, and 10 are in progress.
 - Deadline: the first plan ended Saturday 2026-10-24. On 2026-10-26 the rest of the core was re-planned to finish in one session, with the features listed under _Re-plan_ moved to _Later_.
 - Branching: sprint work lands on `develop`. `develop` runs CI and does not deploy. `main` is what a host would publish later. The user merges `develop` into `main` after Sprint 12.
 - Size: one sprint is one commit stop. If a sprint is sprawling, stop at the first **Done when** and move the rest to the next sprint or to the _Later_ list.
@@ -41,13 +41,13 @@ Rules that apply to every sprint after Sprint 2a (when `npm run verify` exists).
 | 2a     | Thu 2026-10-22 | The gate: verify and CI                          | Done        |
 | 2b     | Thu 2026-10-22 | App skeleton: API, web page, and the rewrite     | Done        |
 | 3      | Fri 2026-10-23 | Accounts API: sign-up, verify, reset, delete     | Done        |
-| 4      | Fri 2026-10-23 | Auth screens, tokens, and the signed-in shell    | In progress |
-| 5      | Fri 2026-10-23 | Rockets and parts API                            | Not started |
-| 6      | Fri 2026-10-23 | The pad and the rocket page, built by hand       | Not started |
+| 4      | Fri 2026-10-23 | Auth screens, tokens, and the signed-in shell    | Done        |
+| 5      | Fri 2026-10-23 | Rockets and parts API                            | In progress |
+| 6      | Fri 2026-10-23 | The pad and the rocket page, built by hand       | In progress |
 | 7      | Fri 2026-10-23 | Saved Claude key and model choice                | Not started |
 | 8      | Sat 2026-10-24 | Interview chat                                   | Not started |
 | 9      | Sat 2026-10-24 | Build the part: draft, edit, attach              | Not started |
-| 10     | Sat 2026-10-24 | Launch, export, delete account                   | Not started |
+| 10     | Sat 2026-10-24 | Launch, export, delete account                   | In progress |
 | 11     | Sat 2026-10-24 | Stretch: five optional extras                    | Not started |
 | 12     | Sat 2026-10-24 | Finish: accessibility, phone pass, security pass | Not started |
 
@@ -180,7 +180,7 @@ npm run verify
 
 ## Sprint 4 — Auth screens and shell
 
-**Status: in progress.**
+**Status: done (2026-10-27).**
 
 **Phase: accounts.**
 
@@ -206,6 +206,8 @@ npm run verify
 
 ## Sprint 5 — Rockets API
 
+**Status: in progress.**
+
 **Phase: rockets.**
 
 ### Work
@@ -230,6 +232,8 @@ npm run verify
 ---
 
 ## Sprint 6 — The pad and the rocket page
+
+**Status: in progress.**
 
 **Phase: rockets.** A function and its screen ship together.
 
@@ -335,6 +339,8 @@ npm run verify
 
 ## Sprint 10 — Launch and export
 
+**Status: in progress.**
+
 **Phase: launch.**
 
 ### Work
@@ -419,6 +425,8 @@ No test, review, or walk is cut. These features move to _Later_ and are not buil
 - Renaming or re-pitching a rocket, `PATCH /api/rockets/:id` (item 4).
 - The Copy buttons. Download stays (item 5).
 - All of Sprint 11.
+
+The second stop builds `Rocket` and `Part` only. `ChatSession` and `ChatMessage`, the one-open-session index, and the tests that need them (a launched rocket refuses a new session; deleting the account removes sessions and messages) come with the chat in the third stop. The Getting started card gains its Claude key line once Settings has the key.
 
 ---
 

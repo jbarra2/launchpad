@@ -88,13 +88,13 @@ describe("the helpers that call the API from the server", () => {
     expect(importersOf("lib/api-origin").sort()).toEqual(["lib/api.ts", "proxy.ts"]);
   });
 
-  it("keeps the server fetch helper to the session helper", () => {
-    expect(importersOf("lib/api")).toEqual(["lib/session.ts"]);
+  it("keeps the server fetch helper to the session and rocket helpers", () => {
+    expect(importersOf("lib/api").sort()).toEqual(["lib/rockets.ts", "lib/session.ts"]);
   });
 
-  it("keeps the session helper to server pages", () => {
-    const importers = importersOf("lib/session");
-    expect(importers.length).toBeGreaterThan(3);
+  it.each(["lib/session", "lib/rockets"])("keeps %s to server pages", (helper) => {
+    const importers = importersOf(helper);
+    expect(importers.length).toBeGreaterThan(2);
     for (const file of importers) {
       expect(file).toMatch(/^app\/.*(page|layout)\.tsx$/);
       expect(fs.readFileSync(path.join(webRoot, file), "utf8")).not.toMatch(/["']use client["']/);
@@ -105,6 +105,8 @@ describe("the helpers that call the API from the server", () => {
 const user = { id: "u1", name: "Ana", email: "ana@example.com" };
 const requireUser = vi.fn(async (_path: string) => user);
 vi.mock("@/lib/session", () => ({ requireUser: (p: string) => requireUser(p) }));
+const getRockets = vi.fn(async () => [] as unknown[]);
+vi.mock("@/lib/rockets", () => ({ getRockets: () => getRockets() }));
 vi.mock("@/lib/navigate", () => ({ navigate: vi.fn(), replaceLocation: vi.fn() }));
 vi.mock("next/navigation", () => ({ usePathname: () => "/pad" }));
 
@@ -114,12 +116,15 @@ const { default: AppLayout } = await import("./layout");
 
 beforeEach(() => {
   requireUser.mockClear();
+  getRockets.mockResolvedValue([]);
 });
+
+const noSearch = { searchParams: Promise.resolve({}) } as never;
 
 describe("a signed-in page whose session check refuses", () => {
   it("renders nothing and lets the redirect through", async () => {
     requireUser.mockRejectedValueOnce(new Error("redirect:/sign-in?next=%2Fpad"));
-    await expect(PadPage()).rejects.toThrow("redirect:/sign-in?next=%2Fpad");
+    await expect(PadPage(noSearch)).rejects.toThrow("redirect:/sign-in?next=%2Fpad");
     requireUser.mockRejectedValueOnce(new Error("redirect:/sign-in?next=%2Fsettings"));
     await expect(SettingsPage()).rejects.toThrow("redirect:/sign-in?next=%2Fsettings");
   });
@@ -127,7 +132,7 @@ describe("a signed-in page whose session check refuses", () => {
 
 describe("the pad", () => {
   it("says it is empty, as a status, inside the signed-in layout", async () => {
-    const { container } = render(<AppLayout>{await PadPage()}</AppLayout>);
+    const { container } = render(<AppLayout>{await PadPage(noSearch)}</AppLayout>);
     expect(requireUser).toHaveBeenCalledWith("/pad");
     expect(screen.getByRole("heading", { level: 1, name: "The pad" })).toBeInTheDocument();
     expect(screen.getByRole("status")).toHaveTextContent("No ideas yet.");

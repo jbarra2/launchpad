@@ -357,3 +357,81 @@ uppercase letter, a lowercase letter, and a number, and no spaces.
   contrast, 44-pixel tap targets, and a working Tab order.
 - `npm run verify`, `npm run build`, and `npm run test:e2e` pass, with 710 tests (553 before) and
   14 end-to-end tests. No package was added or changed.
+
+## 8. Rockets built by hand, launch, and export (Claude Code)
+
+**Asked:**
+
+Build the next stop of the plan: ideas built by hand, part by part, then launched and exported,
+with the pad, the rocket page, and account deletion on Settings. A launched idea can still be
+deleted, and every idea, launched or not, counts toward the limit of 20.
+
+**What came back / what changed:**
+
+- Ideas and their parts are stored in two new tables. A migration adds two checks the database
+  enforces whatever writes to it: a part has at most 8 points, none of them missing, and an idea is
+  launched exactly when it has a launch time. Every text field has the same cap in the shared
+  schema and in the database.
+- The rockets API: list, create, read, delete, write a part, launch, and download `PLAN.md` and
+  `KICKOFF.md`. Every route takes the person from the session and goes through one helper that
+  answers someone else's idea with the same 404 as one that does not exist. An address that could
+  not name an idea, or cannot be read at all, is a 404 before any database work. Creating an idea
+  writes its Engine in the same step: the pitch is its summary and the "why" its first point.
+- Parts go on in order. The next part, or one that is on already, can be written; any other is
+  refused with a sentence that names the part to add first. Launch needs all six. A launched idea
+  refuses every change with 409, and can still be read, exported, and deleted. A 21st idea is
+  refused with 409 as well, and the error rules now list it there.
+- A part write and a launch take turns on the idea's row, so a launch never lands between the check
+  and the write. Creates take turns on the person's row, so the 21st idea is refused even when
+  several are created at the same moment. Both are proven by tests that hold the lock and watch
+  the second request wait, with no sleeps.
+- The two files download under fixed names as Markdown, so an idea's name never reaches a header,
+  and a browser never shows them as a page. Both work before launch, with the parts not written
+  yet marked as such.
+- A database refusal that a route does not handle itself now gets a sentence of its own, and
+  Prisma's message, which can hold the refused row, is never sent or logged. Only a failed check
+  counts as bad input; any other database error stays a fault on our side.
+- Screens: the pad, with a card per idea (the rocket, its name, "3 of 6 parts" or "Ready to
+  launch"), a Launched shelf, and a Getting started card when it is empty; New idea; the rocket
+  page, with the rocket beside the plan from 64rem, Edit and Write it myself, Launch, the two
+  downloads, and Delete idea; a form per part with a live count of points; Delete account on
+  Settings, with the password; the rocket on the landing page; and a page for an address with
+  nothing at it. Launch and both deletes confirm in a dialog with Cancel first. The rocket is one
+  image whose name lists the parts that are on. A launch day shows in the viewer's own time zone.
+- After a first try, the limits were too easy to miss: they were only in the hints, so going past
+  one showed only on submit. Every text field with a limit (an idea's name, pitch, and why, a
+  part's summary and each of its points, and the sign-up name) now has a live count under the box:
+  how many characters are left, or how many too many, in words and in the error colour. Nothing is
+  cut off. It counts what the rules count, so it never disagrees with the refusal on submit, and it
+  starts from whatever the box already holds. A screen reader hears the count with the field, and
+  is told only when a field goes over its limit and when it comes back. A field's error now goes
+  as soon as the field is right.
+- Tests were written first for each rule. Every protection was broken on purpose, one at a time
+  (130 breakages, including four of the migration's own checks on a fresh test database), and a test
+  caught each one. Running each test command unbroken first showed that one early round had found no
+  tests at all, so its results were thrown out and the round was run again.
+- Four rounds of independent review by fresh agents, each a security review and a review of the
+  tests. The security reviews found that an address with a broken escape was answered as a fault
+  rather than a 404, fixed in the first round, and nothing in the three after. The test reviews
+  found tests that could pass by luck (two lock tests, and one that relied on the order rows happen
+  to be stored in), a database trigger that a stopped run could leave behind, the new forms missing
+  from the double-submit tests, and date tests that only worked outside UTC. The second round found
+  that every write by id had been tested with a single idea in the database, so deleting,
+  launching, or checking the parts of one idea could have touched the person's others unnoticed.
+  The third and fourth rounds found narrower gaps of the same kind. Each was fixed with a test, and
+  each fix was proven by breaking the code. The live counts had a review of their own, which found
+  a count that could start out of step with a box the browser had filled, a test that could not
+  fail, and an error left showing after its field was fixed. All three were fixed.
+- Checked live in a real browser against the built app at 390, 768, and 1280 pixels wide, in light
+  and dark: the landing page, sign-up, the empty pad, New idea, Settings, the full pad, the rocket
+  page while building, ready, and launched, the part forms, and the page for a missing idea, 96
+  combinations
+  with no sideways scroll, no console errors, no axe findings with contrast, 44-pixel tap targets,
+  and a working Tab order. Each confirm dialog was opened with the keyboard and checked for where
+  focus lands, Tab staying inside, Escape returning focus, and centring. The walk found Edit links
+  and card names under 44 pixels, card links with no focus outline of their own, a launch day shown
+  in UTC, and dialogs pinned to a corner on a wide screen, and all were fixed. Typing and pasting
+  past each limit was checked in the same browser: the count, its colour, and that nothing was cut
+  off.
+- `npm run verify`, `npm run build`, and `npm run test:e2e` pass, with 902 tests (710 before) and
+  23 end-to-end tests (14 before). No package was added or changed.

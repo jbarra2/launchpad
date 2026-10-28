@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { DeleteAccount } from "@/components/delete-account";
 import { SignOutButton } from "@/components/sign-out-button";
 import { maskEmail } from "@/lib/mask";
 import { requireUser } from "@/lib/session";
@@ -8,7 +9,7 @@ export const metadata: Metadata = { title: "Settings" };
 export default async function SettingsPage() {
   const user = await requireUser("/settings");
   return (
-    <>
+    <div className="narrow">
       <h1>Settings</h1>
       <section aria-labelledby="account-heading" className="settings-section">
         <h2 id="account-heading">Account</h2>
@@ -24,6 +25,11 @@ export default async function SettingsPage() {
         </dl>
         <SignOutButton />
       </section>
-    </>
+      <section aria-labelledby="delete-heading" className="settings-section">
+        <h2 id="delete-heading">Delete account</h2>
+        <p>Your account and every idea on your pad are deleted for good.</p>
+        <DeleteAccount />
+      </section>
+    </div>
   );
 }

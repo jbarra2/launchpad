@@ -1,4 +1,5 @@
 import { cloneElement, isValidElement, useId, type ReactElement } from "react";
+import { FieldCount, type Count } from "./field-count";
 
 interface ControlProps {
   id?: string;
@@ -10,20 +11,25 @@ interface FormFieldProps {
   label: string;
   hint?: string;
   error?: string;
+  /** A live count under the control, for a field with a character limit. */
+  count?: Count;
   children: ReactElement<ControlProps>;
 }
 
 /**
- * A labelled control with its hint and its error. The control is given the id the label points at,
- * and is described by the hint and the error, so a screen reader reads all three together.
+ * A labelled control with its hint, its count, and its error. The control is given the id the
+ * label points at, and is described by the others in that order, so a screen reader reads them
+ * together.
  */
-export function FormField({ label, hint, error, children }: FormFieldProps) {
+export function FormField({ label, hint, error, count, children }: FormFieldProps) {
   const generated = useId();
   const id = children.props.id ?? generated;
   const hintId = hint ? `${id}-hint` : undefined;
+  const countId = count ? `${id}-count` : undefined;
   const errorId = error ? `${id}-error` : undefined;
   const describedBy =
-    [children.props["aria-describedby"], hintId, errorId].filter(Boolean).join(" ") || undefined;
+    [children.props["aria-describedby"], hintId, countId, errorId].filter(Boolean).join(" ") ||
+    undefined;
   const control = isValidElement(children)
     ? cloneElement(children, {
         id,
@@ -41,6 +47,7 @@ export function FormField({ label, hint, error, children }: FormFieldProps) {
         </p>
       ) : null}
       {control}
+      {count && countId ? <FieldCount id={countId} count={count} /> : null}
       {error ? (
         <p id={errorId} className="field-error">
           {error}

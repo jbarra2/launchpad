@@ -21,6 +21,7 @@ model User {
   updatedAt     DateTime  @updatedAt
   sessions      Session[]
   accounts      Account[]
+  rockets       Rocket[]
 
   @@unique([email])
   @@map("user")
@@ -84,4 +85,55 @@ model RateLimit {
 
   @@unique([key])
   @@map("rateLimit")
+}
+
+// The app's own models. The rockets migration (migrations/*_rockets/migration.sql) adds two checks
+// Prisma cannot write: a part has at most 8 points, and a rocket is launched exactly when it has a
+// launch time. The size caps match the shared schemas, which count the same or more strictly.
+
+enum PartKind {
+  ENGINE
+  FUEL
+  BODY
+  AVIONICS
+  FINS
+  NOSE
+}
+
+enum RocketStatus {
+  BUILDING
+  LAUNCHED
+}
+
+enum PartSource {
+  CHAT
+  MANUAL
+}
+
+model Rocket {
+  id         String       @id @default(cuid())
+  userId     String
+  user       User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name       String       @db.VarChar(80)
+  pitch      String       @db.VarChar(200)
+  status     RocketStatus @default(BUILDING)
+  launchedAt DateTime?
+  createdAt  DateTime     @default(now())
+  updatedAt  DateTime     @updatedAt
+  parts      Part[]
+
+  @@index([userId, status, updatedAt])
+}
+
+model Part {
+  id        String     @id @default(cuid())
+  rocketId  String
+  rocket    Rocket     @relation(fields: [rocketId], references: [id], onDelete: Cascade)
+  kind      PartKind
+  summary   String     @db.VarChar(600)
+  points    String[]   @db.VarChar(200)
+  source    PartSource
+  updatedAt DateTime   @updatedAt
+
+  @@unique([rocketId, kind])
 }

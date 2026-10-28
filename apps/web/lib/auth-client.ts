@@ -9,7 +9,8 @@ type AuthPath =
   | "/sign-out"
   | "/send-verification-email"
   | "/request-password-reset"
-  | "/reset-password";
+  | "/reset-password"
+  | "/delete-user";
 
 // The one page a verification link may land on. The API refuses any other.
 export { VERIFIED_LANDING } from "@launchpad/shared";
@@ -58,6 +59,7 @@ const MESSAGES: Record<string, string> = {
   MISSING_OR_NULL_ORIGIN: "Reload this page and try again.",
   INVALID_CALLBACK_URL: "Reload this page and try again.",
   EMAIL_ALREADY_VERIFIED: "That address is already confirmed. You can sign in.",
+  INVALID_PASSWORD: "That password is not right. Try again.",
 };
 
 /** A sentence the person can act on, for a failed call. */

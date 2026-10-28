@@ -144,6 +144,19 @@ main {
   cursor: pointer;
 }
 
+/* A quieter button for Cancel: an outline, with --text on the page (17.5:1 dark, 16.8:1 light). */
+.button-secondary {
+  border: 2px solid var(--accent);
+  background: transparent;
+  color: var(--text);
+}
+
+/* For deleting. --on-accent on --danger is 8.5:1 in dark and 6.6:1 in light. */
+.button-danger {
+  background: var(--danger);
+  color: var(--on-accent);
+}
+
 .button[aria-disabled="true"] {
   cursor: progress;
 }
@@ -151,6 +164,11 @@ main {
 /* Text links get a 44px tall target without looking like buttons. */
 .form-links a,
 .actions a:not(.button-link),
+.back-link a,
+.plan-action,
+.export-links a,
+.rocket-card-download,
+.getting-started a,
 .main-nav a,
 .site-name,
 .auth-brand a {
@@ -187,7 +205,8 @@ form {
 }
 
 /* 16px text, so a phone does not zoom in on focus. */
-input {
+input,
+textarea {
   width: 100%;
   min-height: 44px;
   padding: 0.5rem 0.75rem;
@@ -199,7 +218,13 @@ input {
   font-size: 1rem;
 }
 
-input[aria-invalid="true"] {
+textarea {
+  resize: vertical;
+  line-height: 1.5;
+}
+
+input[aria-invalid="true"],
+textarea[aria-invalid="true"] {
   border: 2px solid var(--danger);
 }
 
@@ -389,6 +414,297 @@ form > .form-links {
   flex-wrap: wrap;
   align-items: center;
   gap: 0.75rem 1.5rem;
+}
+
+/* Signed-in pages are as wide as the header, so the pad's grid and the rocket page's two columns
+   have room. Forms and Settings keep to a reading width. */
+.app-main {
+  max-width: 64rem;
+}
+
+.narrow {
+  max-width: 40rem;
+}
+
+h3 {
+  margin: 0;
+  font-size: 1.0625rem;
+  line-height: 1.3;
+}
+
+.muted {
+  color: var(--muted);
+}
+
+.back-link {
+  margin: 0 0 0.5rem;
+}
+
+/* A mark before a link's words, such as + or ‹. A link that is a flex box drops the space inside it. */
+.lead-mark {
+  margin-right: 0.35em;
+}
+
+.page-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem 1.5rem;
+  margin-bottom: 1rem;
+}
+
+.page-head h1 {
+  margin: 0;
+}
+
+.settings-section + .settings-section {
+  margin-top: 1.5rem;
+}
+
+.form-actions,
+.dialog-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+/* The live count under a field with a character limit. Over the limit it says so in words, and
+   turns --danger (8.5:1 and 6.1:1 on bg, 7.7:1 and 6.6:1 on surface). */
+.field-count {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.9375rem;
+}
+
+.field-count-over {
+  color: var(--danger);
+  font-weight: 600;
+}
+
+/* The rocket. Attached parts are filled with the gradient in the markup. A missing part is a dashed
+   outline in --muted, which reaches 3:1 against both page colours. */
+.rocket {
+  display: block;
+  height: auto;
+}
+
+.rocket-small {
+  width: 4.5rem;
+}
+
+.rocket-large {
+  width: 9rem;
+}
+
+.rocket-window {
+  fill: var(--bg);
+}
+
+.rocket-ghost path,
+.rocket-ghost .rocket-window {
+  fill: none;
+  stroke: var(--muted);
+  stroke-width: 2;
+  stroke-dasharray: 5 4;
+}
+
+/* The pad: one card per row on a phone, then as many 14rem cards as fit. */
+.rocket-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(14rem, 1fr));
+  gap: 1rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.rocket-card {
+  position: relative;
+  display: grid;
+  justify-items: center;
+  gap: 0.5rem;
+  padding: 1.25rem 1rem;
+  border-radius: var(--radius);
+  background: var(--surface);
+  text-align: center;
+}
+
+.rocket-card-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  color: var(--text);
+}
+
+/* The name's link covers the whole card, so the card is one large target. */
+.rocket-card-link::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: var(--radius);
+}
+
+.rocket-card-status {
+  margin: 0;
+  color: var(--muted);
+}
+
+/* Above the card's link, so it can be pressed on its own. */
+.rocket-card-download {
+  position: relative;
+  z-index: 1;
+}
+
+.launched-shelf {
+  margin-top: 2rem;
+}
+
+.getting-started {
+  padding: 1.25rem 1.5rem;
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+.getting-started ol {
+  margin: 0;
+  padding-left: 1.25rem;
+}
+
+.getting-started li + li {
+  margin-top: 0.5rem;
+}
+
+/* The rocket page: the rocket above the plan, and side by side from 64rem. */
+.rocket-page {
+  display: grid;
+  gap: 2rem;
+}
+
+.rocket-column {
+  display: grid;
+  align-content: start;
+  justify-items: start;
+  gap: 0.75rem;
+}
+
+.rocket-column > * {
+  margin: 0;
+}
+
+.pitch {
+  color: var(--muted);
+  font-size: 1.125rem;
+}
+
+.rocket-progress {
+  font-weight: 600;
+}
+
+.export h2 {
+  margin-top: 0.5rem;
+}
+
+.export-links {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.plan-list {
+  display: grid;
+  gap: 0.75rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.plan-part {
+  display: grid;
+  justify-items: start;
+  gap: 0.5rem;
+  padding: 1rem 1.25rem;
+  border: 2px solid transparent;
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+.plan-part-missing {
+  border: 2px dashed var(--muted);
+  background: transparent;
+}
+
+.plan-part-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0 1rem;
+  width: 100%;
+}
+
+.plan-section {
+  color: var(--muted);
+  font-weight: 400;
+}
+
+.plan-state {
+  margin: 0;
+  color: var(--muted);
+}
+
+.plan-summary {
+  margin: 0;
+  white-space: pre-wrap;
+}
+
+.plan-action {
+  justify-content: center;
+  min-width: 44px;
+}
+
+.plan-points {
+  margin: 0;
+  padding-left: 1.25rem;
+}
+
+@media (min-width: 64rem) {
+  .rocket-page {
+    grid-template-columns: minmax(16rem, 20rem) 1fr;
+    align-items: start;
+  }
+}
+
+/* The confirm dialog. The browser keeps focus inside while it is open. */
+.dialog {
+  width: min(32rem, calc(100vw - 2 * var(--gutter)));
+  padding: 1.5rem;
+  border: 0;
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--text);
+}
+
+/* Centred by the browser's own auto margin, which a parent's "> * { margin: 0 }" would undo. */
+.dialog:modal {
+  margin: auto;
+}
+
+.dialog::backdrop {
+  background: rgb(0 0 0 / 0.6);
+}
+
+.dialog .dialog-actions {
+  justify-content: flex-end;
+}
+
+.landing-art {
+  margin-bottom: 1rem;
+}
+
+.landing-art .rocket {
+  width: 7rem;
 }
 
 @media (prefers-reduced-motion: reduce) {

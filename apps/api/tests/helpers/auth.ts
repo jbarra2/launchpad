@@ -17,7 +17,28 @@ interface Options {
 }
 
 export function post(path: string, body: Record<string, unknown>, options: Options = {}) {
-  const req = request(app).post(path).send(body);
+  return change("post", path, body, options);
+}
+
+export function put(path: string, body: Record<string, unknown>, options: Options = {}) {
+  return change("put", path, body, options);
+}
+
+export function del(path: string, options: Options = {}) {
+  return change("delete", path, undefined, options);
+}
+
+/** A request that changes something, sent from the web app's origin unless the test says not. */
+function change(
+  method: "post" | "put" | "delete",
+  path: string,
+  body: Record<string, unknown> | undefined,
+  options: Options,
+) {
+  const req = request(app)[method](path);
+  if (body !== undefined) {
+    req.send(body);
+  }
   if (options.origin !== null) {
     req.set("Origin", options.origin ?? WEB_ORIGIN);
   }

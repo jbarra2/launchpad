@@ -14,7 +14,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
         </Link>
         <MainNav />
       </header>
-      <main id="main-content" tabIndex={-1}>
+      <main id="main-content" tabIndex={-1} className="app-main">
         {children}
       </main>
     </>

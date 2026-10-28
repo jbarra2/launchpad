@@ -37,6 +37,27 @@ describe("every auth form", () => {
   );
 });
 
+describe("SignUpForm's name", () => {
+  it("counts down as it is typed, and keeps text past the limit", () => {
+    render(<SignUpForm />);
+    expect(screen.getByLabelText("Name")).toHaveAccessibleDescription("80 of 80 characters left");
+    type("Name", `  ${"n".repeat(82)}  `);
+    expect(screen.getByText("2 characters too many")).toHaveClass("field-count-over");
+    expect(screen.getByLabelText("Name")).toHaveValue(`  ${"n".repeat(82)}  `);
+  });
+});
+
+describe("SignUpForm's name error", () => {
+  it("goes as soon as the name is right", async () => {
+    render(<SignUpForm />);
+    type("Name", "n".repeat(81));
+    fireEvent.submit(screen.getByRole("form", { name: "Create an account" }));
+    expect(screen.getByLabelText("Name")).toHaveAttribute("aria-invalid", "true");
+    type("Name", "n".repeat(80));
+    expect(screen.getByLabelText("Name")).not.toHaveAttribute("aria-invalid");
+  });
+});
+
 describe("SignInForm", () => {
   it("announces an error on a field that already has focus, as after Enter in it", () => {
     render(
