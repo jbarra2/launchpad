@@ -520,3 +520,26 @@ ended chat cannot be reopened, so nobody expects to return to it.
 - `npm run verify`, `npm run build`, and `npm run test:e2e` pass, with 1,132 tests (902 before) and
   41 end-to-end tests (23 before). One package was added, Anthropic's SDK, pinned to one version;
   its install was checked for install scripts, sources, and known advisories.
+
+## 10. The README, and handing the project in (Claude Code)
+
+**Asked:**
+
+How much work is left before the project can be handed in. Then, since it is overdue: hand in the
+core as built. Bring the README up to date and mark the finished work done. Leave the accessibility
+pass, the pass on a real phone, and the final review of the whole codebase for later.
+
+**What came back / what changed:**
+
+- The README describes the app as it is now: the six parts built in order, a session with Claude
+  or a part written by hand, the draft and Attach part, ending a session, downloads, launch, and
+  the Claude key (where to create one, how it is checked and stored, and the chat's limits).
+- Its run guide now covers both secrets, `BETTER_AUTH_SECRET` and `CREDENTIAL_KEY`, and creates the
+  tables with `npm run db:deploy`. `npm run db:migrate` is kept for changing the schema. The checks
+  section lists what the end-to-end tests cover and says that no test calls Claude.
+- The chat was run with a real Claude key: a key saved and checked, interviews at phone width and
+  on desktop, and a part built with Claude and attached. It worked.
+- The sprint guide marks the saved key, the interview chat, and building a part done, records the
+  hand-in decision, and moves the accessibility pass, the real-phone pass, and the final whole-tree
+  review to _Later_.
+- `npm run verify` passes.

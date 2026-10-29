@@ -3,7 +3,7 @@
 How to build [MASTER_PLAN.md](MASTER_PLAN.md) in three days. The master plan is the source of truth for _what_ and _why_. This file is the source of truth for _in what order, and by when_.
 
 - Last updated: 2026-10-28
-- Progress: Sprints 1 (2026-10-22), 2a (2026-10-23), 2b (2026-10-26), 3 (2026-10-26), 4 (2026-10-27), 5, 6, and 10 (2026-10-27) are done. Sprints 7, 8, and 9 are in progress.
+- Progress: Sprints 1 (2026-10-22), 2a (2026-10-23), 2b (2026-10-26), 3 (2026-10-26), 4 (2026-10-27), 5, 6, and 10 (2026-10-27), and 7, 8, and 9 (2026-10-28) are done. Sprint 12 is cut to the README run guide (see _Re-plan_), and Sprint 11 moved to _Later_.
 - Deadline: the first plan ended Saturday 2026-10-24. On 2026-10-26 the rest of the core was re-planned to finish in one session, with the features listed under _Re-plan_ moved to _Later_.
 - Branching: sprint work lands on `develop`. `develop` runs CI and does not deploy. `main` is what a host would publish later. The user merges `develop` into `main` after Sprint 12.
 - Size: one sprint is one commit stop. If a sprint is sprawling, stop at the first **Done when** and move the rest to the next sprint or to the _Later_ list.
@@ -35,21 +35,21 @@ Rules that apply to every sprint after Sprint 2a (when `npm run verify` exists).
 
 ## Map to the master plan
 
-| Sprint | When           | Outcome                                          | Status      |
-| ------ | -------------- | ------------------------------------------------ | ----------- |
-| 1      | Thu 2026-10-22 | The plan, rules, and log are in the repo         | Done        |
-| 2a     | Thu 2026-10-22 | The gate: verify and CI                          | Done        |
-| 2b     | Thu 2026-10-22 | App skeleton: API, web page, and the rewrite     | Done        |
-| 3      | Fri 2026-10-23 | Accounts API: sign-up, verify, reset, delete     | Done        |
-| 4      | Fri 2026-10-23 | Auth screens, tokens, and the signed-in shell    | Done        |
-| 5      | Fri 2026-10-23 | Rockets and parts API                            | Done        |
-| 6      | Fri 2026-10-23 | The pad and the rocket page, built by hand       | Done        |
-| 7      | Fri 2026-10-23 | Saved Claude key and model choice                | In progress |
-| 8      | Sat 2026-10-24 | Interview chat                                   | In progress |
-| 9      | Sat 2026-10-24 | Build the part: draft, edit, attach              | In progress |
-| 10     | Sat 2026-10-24 | Launch, export, delete account                   | Done        |
-| 11     | Sat 2026-10-24 | Stretch: five optional extras                    | Not started |
-| 12     | Sat 2026-10-24 | Finish: accessibility, phone pass, security pass | Not started |
+| Sprint | When           | Outcome                                       | Status      |
+| ------ | -------------- | --------------------------------------------- | ----------- |
+| 1      | Thu 2026-10-22 | The plan, rules, and log are in the repo      | Done        |
+| 2a     | Thu 2026-10-22 | The gate: verify and CI                       | Done        |
+| 2b     | Thu 2026-10-22 | App skeleton: API, web page, and the rewrite  | Done        |
+| 3      | Fri 2026-10-23 | Accounts API: sign-up, verify, reset, delete  | Done        |
+| 4      | Fri 2026-10-23 | Auth screens, tokens, and the signed-in shell | Done        |
+| 5      | Fri 2026-10-23 | Rockets and parts API                         | Done        |
+| 6      | Fri 2026-10-23 | The pad and the rocket page, built by hand    | Done        |
+| 7      | Fri 2026-10-23 | Saved Claude key and model choice             | Done        |
+| 8      | Sat 2026-10-24 | Interview chat                                | Done        |
+| 9      | Sat 2026-10-24 | Build the part: draft, edit, attach           | Done        |
+| 10     | Sat 2026-10-24 | Launch, export, delete account                | Done        |
+| 11     | Sat 2026-10-24 | Stretch: five optional extras                 | Later       |
+| 12     | Sat 2026-10-24 | Finish: the README run guide                  | In progress |
 
 Sprints 1–10 are the core. Sprint 11 runs only if Sprint 10 is done and green, and stops at the cutoff on Saturday. Sprint 12 runs either way.
 
@@ -259,7 +259,7 @@ npm run verify
 
 ## Sprint 7 — API key and model
 
-**Status: in progress.**
+**Status: done (2026-10-28).**
 
 **Effort: xhigh.** This sprint stores other people's paid credentials. A leak costs them money.
 
@@ -294,7 +294,7 @@ If Friday runs late, this sprint moves to Saturday morning and the cut list star
 
 ## Sprint 8 — Interview chat
 
-**Status: in progress.**
+**Status: done (2026-10-28).**
 
 **Phase: Claude.**
 
@@ -320,7 +320,7 @@ npm run verify
 
 ## Sprint 9 — Build the part
 
-**Status: in progress.**
+**Status: done (2026-10-28).**
 
 **Phase: Claude.**
 
@@ -392,6 +392,10 @@ npm run verify
 
 ## Sprint 12 — Finish
 
+**Status: in progress.** Cut on 2026-10-28 to the README run guide and the done marks, so the project can be handed in. The rest of the work below moved to _Later_ (see _Re-plan_).
+
+**Done when (as cut):** the README describes the app as built and runs it from `.env.example`, and `npm run verify` and CI are green.
+
 **Effort: xhigh.** The last pass over everything that handles accounts and keys.
 
 **Phase: finish.**
@@ -443,6 +447,8 @@ Decided for the third stop (2026-10-28):
 - Checking a key is capped at 10 per person per hour, and the 60 calls an hour count calls in flight.
 - Every page carries a Content-Security-Policy with a nonce, so every page is rendered per request.
 
+Decided for the finish (2026-10-28): the project is handed in after the third stop, with the README run guide brought up to date. The accessibility pass, the real-phone pass, and the final review of the whole tree move to _Later_. Each stop already had its own reviews, mutation checks, and walks at 390, 768, and 1280.
+
 ---
 
 ## Cut list if the core is behind
@@ -471,6 +477,7 @@ Outside the three days:
 - A monthly subscription with included tokens on a platform key.
 - Any Sprint 11 item that did not get built.
 - From the 2026-10-26 re-plan: the model picker, rebuilding an attached part, the liftoff and attach animations, renaming or re-pitching a rocket, and the Copy buttons.
+- From the 2026-10-28 re-plan, the rest of Sprint 12: the accessibility pass (axe on every screen, keyboard-only paths through sign-up, a session, and launch, and reduced motion), the pass on a real phone over the local network, and a final `/code-review` and `/security-review` of the whole tree.
 
 ---
 
