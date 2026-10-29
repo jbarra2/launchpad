@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { axe } from "@/test-utils/axe";
 import { ConfirmDialog } from "./confirm-dialog";
@@ -11,10 +11,9 @@ function setup(onConfirm = vi.fn(async () => null as string | null)) {
       confirmLabel="Delete idea"
       busyLabel="Deleting…"
       danger
+      description={<p>This cannot be undone.</p>}
       onConfirm={onConfirm}
-    >
-      <p>This cannot be undone.</p>
-    </ConfirmDialog>,
+    />,
   );
   const dialog = result.container.querySelector("dialog")!;
   return { ...result, dialog, onConfirm };
@@ -27,12 +26,36 @@ describe("ConfirmDialog", () => {
     fireEvent.click(screen.getByRole("button", { name: "Delete idea" }));
     expect(dialog.open).toBe(true);
     expect(dialog).toHaveAccessibleName("Delete Recipe Swap?");
+    // A screen reader reads the description out when the dialog opens, wherever focus lands.
+    expect(dialog).toHaveAccessibleDescription("This cannot be undone.");
     const buttons = [...dialog.querySelectorAll("button")].map((b) => b.textContent);
     expect(buttons).toEqual(["Cancel", "Delete idea"]);
     // The action never takes focus by itself, so a stray Enter cannot confirm it. Where focus
     // lands in a real browser (Cancel) is checked in the browser walk.
     expect(dialog.querySelector('button[type="submit"]')).not.toHaveFocus();
     expect(await axe(container)).toHaveNoViolations();
+  });
+
+  it("keeps its fields out of the description", () => {
+    render(
+      <ConfirmDialog
+        trigger="Delete account…"
+        title="Delete your account?"
+        confirmLabel="Delete account"
+        busyLabel="Deleting…"
+        description={<p>It cannot be undone.</p>}
+        onConfirm={vi.fn(async () => null)}
+      >
+        <label>
+          Password
+          <input name="password" type="password" defaultValue="typed-here" />
+        </label>
+      </ConfirmDialog>,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Delete account…" }));
+    const dialog = screen.getByRole("dialog", { name: "Delete your account?" });
+    expect(dialog).toHaveAccessibleDescription("It cannot be undone.");
+    expect(within(dialog).getByLabelText("Password")).toBeInTheDocument();
   });
 
   it("closes on Cancel and does nothing else", () => {

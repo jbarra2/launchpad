@@ -676,6 +676,196 @@ h3 {
   }
 }
 
+/* The rocket's gradient, as classes: the page's policy refuses style attributes. */
+.rocket-stop-start {
+  stop-color: var(--accent);
+}
+
+.rocket-stop-end {
+  stop-color: var(--accent-2);
+}
+
+/* The next part's ways to be built: with Claude, and by hand. */
+.plan-next {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 0.75rem;
+}
+
+.plan-next > p {
+  flex-basis: 100%;
+  margin: 0;
+}
+
+.start-session {
+  display: grid;
+  justify-items: start;
+  gap: 0.25rem;
+}
+
+.start-session p {
+  margin: 0;
+}
+
+.key-note {
+  margin-top: 1rem;
+}
+
+/* A saved key's last 4 characters. */
+.key-mask {
+  font-family: ui-monospace, "Cascadia Mono", Menlo, monospace;
+  letter-spacing: 0.05em;
+}
+
+/* A chat session. A phone gets the chat alone, full screen; a tablet puts the rocket above it, and
+   from 64rem the rocket column sits beside it. */
+.session-page {
+  display: grid;
+  gap: 1.5rem;
+}
+
+.session-rocket {
+  display: none;
+}
+
+.session-chat {
+  display: grid;
+  align-content: start;
+  gap: 1rem;
+  min-width: 0;
+}
+
+.session-chat h1 {
+  margin: 0;
+}
+
+.transcript {
+  display: grid;
+  gap: 0.75rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.message {
+  max-width: 40rem;
+  padding: 0.75rem 1rem;
+  border: 2px solid transparent;
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+.message-user {
+  justify-self: end;
+  border-color: var(--accent);
+  background: transparent;
+}
+
+.message-author {
+  margin: 0 0 0.25rem;
+  color: var(--muted);
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+/* Claude's words are plain text: its line breaks are kept, and nothing is read as markup. */
+.message-text {
+  margin: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.chat-empty {
+  display: grid;
+  justify-items: start;
+  gap: 0.5rem;
+}
+
+.chat-empty p {
+  margin: 0;
+}
+
+/* The answer box stays at the bottom of the screen, above a phone's home bar and its keyboard. */
+.composer {
+  position: sticky;
+  bottom: 0;
+  display: grid;
+  gap: 0.5rem;
+  padding: 0.75rem 0 calc(0.75rem + env(safe-area-inset-bottom));
+  background: var(--bg);
+}
+
+.composer[hidden] {
+  display: none;
+}
+
+/* The status and the alert sit close under the box they belong to. */
+.composer form {
+  gap: 0.25rem;
+}
+
+.composer textarea {
+  width: 100%;
+}
+
+.chat-status {
+  min-height: 1.5em;
+  margin: 0;
+  color: var(--muted);
+}
+
+.composer-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.draft {
+  display: grid;
+  gap: 0.75rem;
+  padding: 1rem 1.25rem;
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+.draft h2,
+.draft > p {
+  margin: 0;
+}
+
+@media (min-width: 48rem) {
+  .session-rocket {
+    display: grid;
+    justify-items: center;
+    gap: 0.5rem;
+  }
+
+  .session-rocket .rocket {
+    width: 6rem;
+  }
+
+  .session-rocket p {
+    margin: 0;
+  }
+}
+
+@media (min-width: 64rem) {
+  .session-page {
+    grid-template-columns: minmax(14rem, 18rem) 1fr;
+    align-items: start;
+  }
+
+  .session-rocket {
+    position: sticky;
+    top: 1rem;
+  }
+
+  .session-rocket .rocket {
+    width: 9rem;
+  }
+}
+
 /* The confirm dialog. The browser keeps focus inside while it is open. */
 .dialog {
   width: min(32rem, calc(100vw - 2 * var(--gutter)));

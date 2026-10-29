@@ -57,6 +57,11 @@ function GettingStarted() {
           Add the other five parts one at a time. <strong>Write it myself</strong> opens a short
           form for each.
         </li>
+        <li>
+          Or build them by chatting with Claude: add a Claude key in{" "}
+          <Link href="/settings">Settings</Link>. You make one in the Claude Console, and what the
+          chats cost is billed to your own Anthropic account.
+        </li>
         <li>When all six are on, launch it and download its plan.</li>
       </ol>
     </section>

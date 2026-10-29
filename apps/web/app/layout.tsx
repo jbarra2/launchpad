@@ -1,5 +1,6 @@
 import { APP_NAME } from "@launchpad/shared";
 import type { Metadata, Viewport } from "next";
+import { connection } from "next/server";
 import type { ReactNode } from "react";
 import { LiveRegion } from "@/components/a11y/live-region";
 import { SkipLink } from "@/components/a11y/skip-link";
@@ -17,7 +18,10 @@ export const viewport: Viewport = {
   interactiveWidget: "resizes-content",
 };
 
-export default function RootLayout({ children }: { children: ReactNode }) {
+// Every page is rendered for its request, so Next can put that request's nonce on its scripts
+// (see the Content-Security-Policy in proxy.ts). A page built ahead of time would have none.
+export default async function RootLayout({ children }: { children: ReactNode }) {
+  await connection();
   return (
     <html lang="en">
       <body>

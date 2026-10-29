@@ -91,6 +91,23 @@ export function apiErrorMessage(result: ApiFailure, fallback: string): string {
   return result.message ?? fallback;
 }
 
+/**
+ * A sentence for a failed chat or key call. Here the API's sentence says which limit was reached or
+ * what went wrong with Claude, so it is shown for a 429 and a 503 or 504 too. A 500 stays general.
+ */
+export function claudeErrorMessage(result: ApiFailure, fallback: string): string {
+  if (result.status === 0) {
+    return NETWORK_MESSAGE;
+  }
+  if (result.status === 401) {
+    return SIGNED_OUT_MESSAGE;
+  }
+  if (result.status === 500) {
+    return fallback;
+  }
+  return result.message ?? fallback;
+}
+
 /** The first message for each field, from the API's `details`. */
 export function detailErrors(details: FieldDetail[]): Partial<Record<string, string>> {
   const errors: Partial<Record<string, string>> = {};

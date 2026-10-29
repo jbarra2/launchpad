@@ -2,8 +2,8 @@
 
 How to build [MASTER_PLAN.md](MASTER_PLAN.md) in three days. The master plan is the source of truth for _what_ and _why_. This file is the source of truth for _in what order, and by when_.
 
-- Last updated: 2026-10-27
-- Progress: Sprints 1 (2026-10-22), 2a (2026-10-23), 2b (2026-10-26), 3 (2026-10-26), and 4 (2026-10-27) are done. Sprints 5, 6, and 10 are in progress.
+- Last updated: 2026-10-28
+- Progress: Sprints 1 (2026-10-22), 2a (2026-10-23), 2b (2026-10-26), 3 (2026-10-26), 4 (2026-10-27), 5, 6, and 10 (2026-10-27) are done. Sprints 7, 8, and 9 are in progress.
 - Deadline: the first plan ended Saturday 2026-10-24. On 2026-10-26 the rest of the core was re-planned to finish in one session, with the features listed under _Re-plan_ moved to _Later_.
 - Branching: sprint work lands on `develop`. `develop` runs CI and does not deploy. `main` is what a host would publish later. The user merges `develop` into `main` after Sprint 12.
 - Size: one sprint is one commit stop. If a sprint is sprawling, stop at the first **Done when** and move the rest to the next sprint or to the _Later_ list.
@@ -42,12 +42,12 @@ Rules that apply to every sprint after Sprint 2a (when `npm run verify` exists).
 | 2b     | Thu 2026-10-22 | App skeleton: API, web page, and the rewrite     | Done        |
 | 3      | Fri 2026-10-23 | Accounts API: sign-up, verify, reset, delete     | Done        |
 | 4      | Fri 2026-10-23 | Auth screens, tokens, and the signed-in shell    | Done        |
-| 5      | Fri 2026-10-23 | Rockets and parts API                            | In progress |
-| 6      | Fri 2026-10-23 | The pad and the rocket page, built by hand       | In progress |
-| 7      | Fri 2026-10-23 | Saved Claude key and model choice                | Not started |
-| 8      | Sat 2026-10-24 | Interview chat                                   | Not started |
-| 9      | Sat 2026-10-24 | Build the part: draft, edit, attach              | Not started |
-| 10     | Sat 2026-10-24 | Launch, export, delete account                   | In progress |
+| 5      | Fri 2026-10-23 | Rockets and parts API                            | Done        |
+| 6      | Fri 2026-10-23 | The pad and the rocket page, built by hand       | Done        |
+| 7      | Fri 2026-10-23 | Saved Claude key and model choice                | In progress |
+| 8      | Sat 2026-10-24 | Interview chat                                   | In progress |
+| 9      | Sat 2026-10-24 | Build the part: draft, edit, attach              | In progress |
+| 10     | Sat 2026-10-24 | Launch, export, delete account                   | Done        |
 | 11     | Sat 2026-10-24 | Stretch: five optional extras                    | Not started |
 | 12     | Sat 2026-10-24 | Finish: accessibility, phone pass, security pass | Not started |
 
@@ -206,7 +206,7 @@ npm run verify
 
 ## Sprint 5 — Rockets API
 
-**Status: in progress.**
+**Status: done (2026-10-27).**
 
 **Phase: rockets.**
 
@@ -233,7 +233,7 @@ npm run verify
 
 ## Sprint 6 — The pad and the rocket page
 
-**Status: in progress.**
+**Status: done (2026-10-27).**
 
 **Phase: rockets.** A function and its screen ship together.
 
@@ -258,6 +258,8 @@ npm run verify
 ---
 
 ## Sprint 7 — API key and model
+
+**Status: in progress.**
 
 **Effort: xhigh.** This sprint stores other people's paid credentials. A leak costs them money.
 
@@ -292,6 +294,8 @@ If Friday runs late, this sprint moves to Saturday morning and the cut list star
 
 ## Sprint 8 — Interview chat
 
+**Status: in progress.**
+
 **Phase: Claude.**
 
 ### Work
@@ -316,6 +320,8 @@ npm run verify
 
 ## Sprint 9 — Build the part
 
+**Status: in progress.**
+
 **Phase: Claude.**
 
 ### Work
@@ -339,7 +345,7 @@ npm run verify
 
 ## Sprint 10 — Launch and export
 
-**Status: in progress.**
+**Status: done (2026-10-27).**
 
 **Phase: launch.**
 
@@ -427,6 +433,15 @@ No test, review, or walk is cut. These features move to _Later_ and are not buil
 - All of Sprint 11.
 
 The second stop builds `Rocket` and `Part` only. `ChatSession` and `ChatMessage`, the one-open-session index, and the tests that need them (a launched rocket refuses a new session; deleting the account removes sessions and messages) come with the chat in the third stop. The Getting started card gains its Claude key line once Settings has the key.
+
+Decided for the third stop (2026-10-28):
+
+- Chats use Claude Opus 5.5 through `@anthropic-ai/sdk`, with the server-side refusal fallback. A refusal is a 422.
+- Every part field and chat message refuses invisible direction and zero-width characters, and Claude's drafts have them removed before they are shown. `KICKOFF.md` is not fenced: the person edits and attaches every draft.
+- The draft opens on the session screen, in place of the answer box.
+- Writing the session's part by hand closes the open session in the same write, so an open session always builds the next part and a launched idea never has one.
+- Checking a key is capped at 10 per person per hour, and the 60 calls an hour count calls in flight.
+- Every page carries a Content-Security-Policy with a nonce, so every page is rendered per request.
 
 ---
 

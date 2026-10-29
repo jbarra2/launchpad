@@ -16,6 +16,7 @@
     "db:deploy": "prisma migrate deploy"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "1.3.0",
     "@better-auth/prisma-adapter": "^1.7.13",
     "@launchpad/shared": "*",
     "@prisma/adapter-pg": "^7.10.1",

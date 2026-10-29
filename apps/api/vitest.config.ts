@@ -25,9 +25,16 @@ export default defineConfig({
       // forge X-Forwarded-For need the real topology.
       TRUST_PROXY_HOPS: "1",
       MAIL_TRANSPORT: "console",
+      // 32 made-up bytes. Each environment makes its own with the command in .env.example.
+      CREDENTIAL_KEY: "BwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwc=", // public-check: allow secret
+      CREDENTIAL_KEY_VERSION: "1",
+      ANTHROPIC_TIMEOUT_MS: "90000",
+      // A closed port on this machine: if the stand-in client ever failed to load, a real client
+      // would fail here instead of reaching Anthropic. No shell setting leaks in either.
+      ANTHROPIC_BASE_URL: "http://127.0.0.1:9",
     },
     globalSetup: "./tests/setup/globalSetup.ts",
-    setupFiles: ["./tests/setup/reset.ts"],
+    setupFiles: ["./tests/setup/fake-anthropic.ts", "./tests/setup/reset.ts"],
     fileParallelism: false,
     maxWorkers: 1,
     include: ["tests/**/*.test.ts"],

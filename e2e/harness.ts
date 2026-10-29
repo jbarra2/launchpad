@@ -5,6 +5,7 @@ import net from "node:net";
 import path from "node:path";
 import readline from "node:readline";
 import { fileURLToPath } from "node:url";
+import { startFakeAnthropic, type FakeAnthropic } from "./fake-anthropic.js";
 
 // Runs the built API and the built web app on this machine, against the test database, so a test
 // can drive the whole path a browser takes: the web origin, the /api rewrite, the proxy, the pages.
@@ -93,6 +94,10 @@ export interface Stack {
   /** The newest link of this kind printed for this address, waiting for it if needed. */
   mail(kind: MailKind, to: string, timeoutMs?: number): Promise<string>;
   db: import("../apps/api/src/generated/prisma/client.js").PrismaClient;
+  /** The stand-in for Anthropic that the API calls, with what each request carried. */
+  anthropic: FakeAnthropic;
+  /** Everything the two servers have printed so far. */
+  output(): string;
   stop(): Promise<void>;
 }
 
@@ -201,8 +206,10 @@ export async function startStack(): Promise<Stack> {
 
   const output: string[] = [];
   const children: ChildProcess[] = [];
+  const anthropic = await startFakeAnthropic();
   const stop = async () => {
     await Promise.all(children.map(stopChild));
+    await anthropic.stop();
     await db.$disconnect();
   };
 
@@ -220,6 +227,9 @@ export async function startStack(): Promise<Stack> {
         BETTER_AUTH_SECRET: randomBytes(32).toString("base64url"),
         BETTER_AUTH_URL: WEB_ORIGIN,
         MAIL_TRANSPORT: "console",
+        // A new one for every run, like the auth secret. Saved keys from another run cannot be read.
+        CREDENTIAL_KEY: randomBytes(32).toString("base64"),
+        ANTHROPIC_BASE_URL: anthropic.origin,
       }) as NodeJS.ProcessEnv,
     });
     children.push(api);
@@ -281,5 +291,5 @@ export async function startStack(): Promise<Stack> {
     );
   }
 
-  return { apiOrigin, mail, db, stop };
+  return { apiOrigin, mail, db, anthropic, output: () => output.join("\n"), stop };
 }

@@ -58,11 +58,20 @@ export default async function PartPage({ params }: PageProps<"/rockets/[id]/part
           ) : null}
         </>
       ) : (
-        <PartForm
-          rocketId={rocket.id}
-          kind={kind}
-          initial={existing ? { summary: existing.summary, points: existing.points } : undefined}
-        />
+        <>
+          {rocket.openSession?.part === kind ? (
+            <p className="notice">
+              Saving this ends your open session with Claude for the {name}, and you can&apos;t come
+              back to that chat. <Link href={`${back}/session`}>Go back to the session</Link> to
+              build it with Claude instead.
+            </p>
+          ) : null}
+          <PartForm
+            rocketId={rocket.id}
+            kind={kind}
+            initial={existing ? { summary: existing.summary, points: existing.points } : undefined}
+          />
+        </>
       )}
     </div>
   );

@@ -77,8 +77,7 @@ export function apiRewrites(origin: string) {
   ];
 }
 
-// A Content-Security-Policy for the pages comes with the security pass in Sprint 12, because Next's
-// own scripts need a nonce and its development server needs a looser policy.
+// The Content-Security-Policy is set in proxy.ts, because it carries a new nonce for every page.
 export function securityHeaders(production: boolean) {
   return [
     { key: "X-Content-Type-Options", value: "nosniff" },

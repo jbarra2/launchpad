@@ -76,9 +76,15 @@ interface PartFormProps {
   rocketId: string;
   kind: PartKind;
   initial?: { summary: string; points: string[] };
+  /**
+   * Set when the form holds Claude's draft from a chat session: saving it attaches the part from
+   * that session, which closes in the same write. The form then goes back to the chat instead of
+   * to the idea when the person cancels.
+   */
+  draft?: { sessionId: string; onBackToChat: () => void };
 }
 
-export function PartForm({ rocketId, kind, initial }: PartFormProps) {
+export function PartForm({ rocketId, kind, initial, draft }: PartFormProps) {
   const [errors, setErrors] = useState<FieldErrors>({});
   // What the two boxes hold, as far as the live counts under them need.
   const [summaryLength, setSummaryLength] = useState(() => measuredLength(initial?.summary ?? ""));
@@ -163,9 +169,10 @@ export function PartForm({ rocketId, kind, initial }: PartFormProps) {
 
     pending.current = true;
     setBusy(true);
-    const result = await apiSend("PUT", `/api/rockets/${rocketId}/parts/${kind}`, parsed.data);
+    const body = draft ? { ...parsed.data, sessionId: draft.sessionId } : parsed.data;
+    const result = await apiSend("PUT", `/api/rockets/${rocketId}/parts/${kind}`, body);
     if (result.ok) {
-      wentTo.current = `${back}?saved=${kind}`;
+      wentTo.current = draft ? `${back}?attached=${kind}` : `${back}?saved=${kind}`;
       navigate(wentTo.current);
       return;
     }
@@ -177,11 +184,18 @@ export function PartForm({ rocketId, kind, initial }: PartFormProps) {
       focusFirstError(form, fromApi, ORDER, announce);
       return;
     }
-    alert.show(apiErrorMessage(result, `We could not save the ${name}. Try again.`));
+    const verb = draft ? "attach" : "save";
+    alert.show(apiErrorMessage(result, `We could not ${verb} the ${name}. Try again.`));
   }
 
   return (
-    <form ref={formRef} method="post" noValidate aria-label={`The ${name}`} onSubmit={onSubmit}>
+    <form
+      ref={formRef}
+      method="post"
+      noValidate
+      aria-label={draft ? `Draft of the ${name}` : `The ${name}`}
+      onSubmit={onSubmit}
+    >
       <FormAlert id="part-alert" alert={alert.alert} alertRef={alert.ref} />
       <FormField
         label="Summary"
@@ -210,11 +224,17 @@ export function PartForm({ rocketId, kind, initial }: PartFormProps) {
       </FormField>
       <div className="form-actions">
         <button type="submit" className="button" aria-disabled={busy || undefined}>
-          {busy ? "Saving…" : `Save the ${name}`}
+          {draft ? (busy ? "Attaching…" : "Attach part") : busy ? "Saving…" : `Save the ${name}`}
         </button>
-        <Link href={back} className="button-link button-secondary">
-          Cancel
-        </Link>
+        {draft ? (
+          <button type="button" className="button button-secondary" onClick={draft.onBackToChat}>
+            Back to the chat
+          </button>
+        ) : (
+          <Link href={back} className="button-link button-secondary">
+            Cancel
+          </Link>
+        )}
       </div>
     </form>
   );

@@ -17,6 +17,7 @@ export function LaunchButton({ rocketId, name }: Props) {
       title={`Launch ${name}?`}
       confirmLabel="Launch"
       busyLabel="Launching…"
+      description={<p>Launching locks this rocket. Continue?</p>}
       onConfirm={async () => {
         const result = await apiSend("POST", `/api/rockets/${rocketId}/launch`);
         if (result.ok) {
@@ -25,9 +26,7 @@ export function LaunchButton({ rocketId, name }: Props) {
         }
         return apiErrorMessage(result, "We could not launch it. Try again.");
       }}
-    >
-      <p>Launching locks this rocket. Continue?</p>
-    </ConfirmDialog>
+    />
   );
 }
 
@@ -39,6 +38,7 @@ export function DeleteRocketButton({ rocketId, name }: Props) {
       confirmLabel="Delete idea"
       busyLabel="Deleting…"
       danger
+      description={<p>This deletes the idea and all its parts. It cannot be undone.</p>}
       onConfirm={async () => {
         const result = await apiSend("DELETE", `/api/rockets/${rocketId}`);
         if (result.ok) {
@@ -48,8 +48,6 @@ export function DeleteRocketButton({ rocketId, name }: Props) {
         }
         return apiErrorMessage(result, "We could not delete it. Try again.");
       }}
-    >
-      <p>This deletes the idea and all its parts. It cannot be undone.</p>
-    </ConfirmDialog>
+    />
   );
 }

@@ -23,3 +23,11 @@ export function maskEmail(email: string): string {
   const ending = labels.length > 1 ? `.${labels.at(-1)}` : "";
   return `${shown}${DOTS}@${first}${DOTS}${ending}`;
 }
+
+/**
+ * A saved Claude key, shown by its last 4 characters only: "••••abcd". The API never sends more of
+ * the key than those 4, so this only formats them.
+ */
+export function maskKey(last4: string): string {
+  return `••••${last4.slice(-4)}`;
+}

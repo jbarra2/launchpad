@@ -4,11 +4,15 @@ import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { checkTestEnvironment, envFile, loadDotEnv, parseEnv } from "../src/config/env.js";
 
-// The smallest set that is valid. The secret is made up and is only ever used by these tests.
+// 32 made-up bytes in base64, used only by these tests.
+const CREDENTIAL_KEY = Buffer.alloc(32, 9).toString("base64");
+
+// The smallest set that is valid. The secrets are made up and are only ever used by these tests.
 const base = {
   DATABASE_URL: "postgresql://someone@localhost:5443/launchpad_test",
   BETTER_AUTH_SECRET: "x".repeat(32),
   BETTER_AUTH_URL: "http://localhost:3100",
+  CREDENTIAL_KEY,
 };
 
 function messageFor(source: Record<string, string>): string {
@@ -28,6 +32,8 @@ describe("parseEnv", () => {
       PORT: 4100,
       TRUST_PROXY_HOPS: 0,
       MAIL_TRANSPORT: "console",
+      CREDENTIAL_KEY_VERSION: 1,
+      ANTHROPIC_TIMEOUT_MS: 90_000,
     });
   });
 
@@ -109,6 +115,52 @@ describe("the settings for the database and sign-in", () => {
   it("refuses an unknown MAIL_TRANSPORT", () => {
     expect(messageFor({ MAIL_TRANSPORT: "carrier-pigeon" })).toContain("MAIL_TRANSPORT");
   });
+
+  it.each([
+    ["not base64", "this is not base64 at all, not even close!!"],
+    ["31 bytes", Buffer.alloc(31, 1).toString("base64")],
+    ["33 bytes", Buffer.alloc(33, 1).toString("base64")],
+    ["base64url", Buffer.alloc(32, 0xfb).toString("base64url")],
+    ["no padding", Buffer.alloc(32, 2).toString("base64").replace(/=$/, "")],
+  ])("refuses a CREDENTIAL_KEY that is %s, without repeating it", (_name, value) => {
+    const message = messageFor({ CREDENTIAL_KEY: value });
+    expect(message).toContain("CREDENTIAL_KEY: must be 32 bytes written in base64");
+    expect(message).not.toContain(value);
+  });
+
+  it("needs a CREDENTIAL_KEY", () => {
+    expect(messageFor({ CREDENTIAL_KEY: "" })).toContain("CREDENTIAL_KEY: is required");
+  });
+
+  it("refuses a CREDENTIAL_KEY that is also the session secret, without repeating it", () => {
+    const message = messageFor({ BETTER_AUTH_SECRET: CREDENTIAL_KEY });
+    expect(message).toContain("CREDENTIAL_KEY: must not be the same as BETTER_AUTH_SECRET");
+    expect(message).not.toContain(CREDENTIAL_KEY);
+  });
+
+  it("reads the key version and the Claude timeout, within their ranges", () => {
+    expect(
+      parseEnv({ ...base, CREDENTIAL_KEY_VERSION: "2", ANTHROPIC_TIMEOUT_MS: "1000" }),
+    ).toMatchObject({ CREDENTIAL_KEY_VERSION: 2, ANTHROPIC_TIMEOUT_MS: 1000 });
+    expect(messageFor({ CREDENTIAL_KEY_VERSION: "0" })).toContain("CREDENTIAL_KEY_VERSION");
+    expect(messageFor({ ANTHROPIC_TIMEOUT_MS: "999" })).toContain("ANTHROPIC_TIMEOUT_MS");
+    expect(messageFor({ ANTHROPIC_TIMEOUT_MS: "600001" })).toContain("ANTHROPIC_TIMEOUT_MS");
+  });
+
+  it("refuses extra headers for every Claude call, without repeating them", () => {
+    const message = messageFor({ ANTHROPIC_CUSTOM_HEADERS: "Authorization: Bearer someone-else" });
+    expect(message).toContain("ANTHROPIC_CUSTOM_HEADERS: must not be set");
+    expect(message).not.toContain("someone-else");
+  });
+
+  it("takes a stand-in address for Anthropic outside production, for the end-to-end tests", () => {
+    expect(parseEnv({ ...base, ANTHROPIC_BASE_URL: "http://127.0.0.1:4299" })).toMatchObject({
+      ANTHROPIC_BASE_URL: "http://127.0.0.1:4299",
+    });
+    expect(messageFor({ ANTHROPIC_BASE_URL: "file:///etc/passwd" })).toContain(
+      "ANTHROPIC_BASE_URL",
+    );
+  });
 });
 
 describe("production", () => {
@@ -148,6 +200,12 @@ describe("production", () => {
 
   it("does not ask for it outside production", () => {
     expect(parseEnv(base).TRUST_PROXY_HOPS).toBe(0);
+  });
+
+  it("refuses a stand-in address for Anthropic, because every saved key would be sent there", () => {
+    expect(() =>
+      parseEnv({ ...production, TRUST_PROXY_HOPS: "1", ANTHROPIC_BASE_URL: "https://x.example" }),
+    ).toThrow(/ANTHROPIC_BASE_URL: cannot be set in production/);
   });
 });
 

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { hasInvisible } from "./text.js";
 
 // The contract for ideas (rockets) and their six parts, used by the forms, the API, and the files a
 // rocket exports. Every text field has a cap, and each refusal is a sentence a person can act on.
@@ -56,13 +57,39 @@ const NOT_ONE_LINE = /[\p{Cc}\u2028\u2029]/u;
 // are refused.
 const CONTROL_EXCEPT_NEWLINE = /[^\P{Cc}\n\t]|[\u2028\u2029]/u;
 
+const invisibleMessage = (field: string) =>
+  `The ${field} has invisible characters in it. Type it again instead of pasting it.`;
+
 function oneLine(field: string, max: number, missing: string) {
   return z
     .string({ error: missing })
     .trim()
     .min(1, missing)
     .max(max, `Use ${max} characters or fewer for the ${field}.`)
-    .refine((value) => !NOT_ONE_LINE.test(value), `Keep the ${field} to one line.`);
+    .refine((value) => !NOT_ONE_LINE.test(value), `Keep the ${field} to one line.`)
+    .refine((value) => !hasInvisible(value), invisibleMessage(field));
+}
+
+/**
+ * Text that may run over several lines, such as a summary or a chat message. Windows line breaks
+ * are stored as plain ones, so the same text is the same length everywhere, and a pasted tab is
+ * fine. Other control characters and invisible ones are refused.
+ */
+export function multiLineText(field: string, max: number, missing: string) {
+  return z
+    .string({ error: missing })
+    .transform((value) => value.replace(/\r\n?/g, "\n").trim())
+    .pipe(
+      z
+        .string()
+        .min(1, missing)
+        .max(max, `Use ${max} characters or fewer for the ${field}.`)
+        .refine(
+          (value) => !CONTROL_EXCEPT_NEWLINE.test(value),
+          `Take out the special characters in the ${field}.`,
+        )
+        .refine((value) => !hasInvisible(value), invisibleMessage(field)),
+    );
 }
 
 const rocketName = oneLine("name", ROCKET_NAME_MAX, "Enter a name for the idea.");
@@ -75,23 +102,11 @@ const why = z
   .trim()
   .max(POINT_MAX, `Use ${POINT_MAX} characters or fewer for why it matters.`)
   .refine((value) => !NOT_ONE_LINE.test(value), "Keep why it matters to one line.")
+  .refine((value) => !hasInvisible(value), invisibleMessage("why"))
   .optional()
   .transform((value) => (value ? value : undefined));
 
-const summary = z
-  .string({ error: "Write a summary." })
-  // Windows line endings are stored as plain ones, so the same text is the same length everywhere.
-  .transform((value) => value.replace(/\r\n?/g, "\n").trim())
-  .pipe(
-    z
-      .string()
-      .min(1, "Write a summary.")
-      .max(SUMMARY_MAX, `Use ${SUMMARY_MAX} characters or fewer for the summary.`)
-      .refine(
-        (value) => !CONTROL_EXCEPT_NEWLINE.test(value),
-        "Take out the special characters in the summary.",
-      ),
-  );
+const summary = multiLineText("summary", SUMMARY_MAX, "Write a summary.");
 
 const point = oneLine("point", POINT_MAX, "A point cannot be empty.");
 
@@ -107,18 +122,23 @@ export const createRocketBody = z.strictObject({
   why,
 });
 
+// An idea's id, and a chat session's, as the database makes them (a cuid). Anything else cannot
+// name one, so it is a 404 before any query, and a page never builds an address from it.
+export const rocketIdParam = z.string().regex(/^[a-z0-9]{1,40}$/);
+export const sessionIdParam = z.string().regex(/^[a-z0-9]{1,40}$/);
+
+// A part written by hand, or a draft from a chat session being attached. With a session, the part
+// is written from that session and the session closes in the same write.
 export const partBody = z.strictObject({
   summary,
   points,
+  sessionId: sessionIdParam.optional(),
 });
 
 export const rocketListQuery = z.strictObject({
   status: z.enum(ROCKET_STATUSES, { error: "Ask for building or launched ideas." }).optional(),
 });
 
-// An idea's id as the database makes it (a cuid). Anything else cannot name an idea, so it is a 404
-// before any query, and a page never builds an address from it.
-export const rocketIdParam = z.string().regex(/^[a-z0-9]{1,40}$/);
 export const partKindParam = z.enum(PART_KINDS);
 
 export type CreateRocketBody = z.infer<typeof createRocketBody>;
@@ -160,6 +180,8 @@ export const rocketDetail = z.object({
   status: z.enum(ROCKET_STATUSES),
   /** The parts that are on, in order. */
   parts: z.array(partResponse),
+  /** The chat session open for the next part, if there is one. */
+  openSession: z.object({ id: sessionIdParam, part: z.enum(PART_KINDS) }).nullable(),
   launchedAt: isoTime.nullable(),
   createdAt: isoTime,
   updatedAt: isoTime,

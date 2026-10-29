@@ -12,16 +12,19 @@ datasource db {
 // after them.
 
 model User {
-  id            String    @id
+  id            String         @id
   name          String
   email         String
-  emailVerified Boolean   @default(false)
+  emailVerified Boolean        @default(false)
   image         String?
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
   sessions      Session[]
   accounts      Account[]
   rockets       Rocket[]
+  apiCredential ApiCredential?
+  keyChecks     KeyCheck[]
+  usageEvents   UsageEvent[]
 
   @@unique([email])
   @@map("user")
@@ -89,7 +92,9 @@ model RateLimit {
 
 // The app's own models. The rockets migration (migrations/*_rockets/migration.sql) adds two checks
 // Prisma cannot write: a part has at most 8 points, and a rocket is launched exactly when it has a
-// launch time. The size caps match the shared schemas, which count the same or more strictly.
+// launch time. The claude migration (migrations/*_claude/migration.sql) adds the rule that a rocket
+// has at most one open chat session, and checks on sessions, keys, messages, and usage. The size
+// caps match the shared schemas, which count the same or more strictly.
 
 enum PartKind {
   ENGINE
@@ -111,16 +116,18 @@ enum PartSource {
 }
 
 model Rocket {
-  id         String       @id @default(cuid())
+  id         String        @id @default(cuid())
   userId     String
-  user       User         @relation(fields: [userId], references: [id], onDelete: Cascade)
-  name       String       @db.VarChar(80)
-  pitch      String       @db.VarChar(200)
-  status     RocketStatus @default(BUILDING)
+  user       User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name       String        @db.VarChar(80)
+  pitch      String        @db.VarChar(200)
+  status     RocketStatus  @default(BUILDING)
   launchedAt DateTime?
-  createdAt  DateTime     @default(now())
-  updatedAt  DateTime     @updatedAt
+  createdAt  DateTime      @default(now())
+  updatedAt  DateTime      @updatedAt
   parts      Part[]
+  sessions   ChatSession[]
+  usage      UsageEvent[]
 
   @@index([userId, status, updatedAt])
 }
@@ -136,4 +143,98 @@ model Part {
   updatedAt DateTime   @updatedAt
 
   @@unique([rocketId, kind])
+}
+
+enum CredentialStatus {
+  VALID
+  INVALID
+}
+
+enum SessionStatus {
+  OPEN
+  CLOSED
+}
+
+enum MessageRole {
+  USER
+  ASSISTANT
+}
+
+enum UsageKind {
+  INTERVIEW
+  DRAFT
+}
+
+// A person's Claude key, encrypted with AES-256-GCM (lib/credentials.ts) with their id as the
+// associated data. Only the last 4 characters are kept in the clear.
+model ApiCredential {
+  userId     String           @id
+  user       User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  ciphertext Bytes
+  iv         Bytes
+  tag        Bytes
+  keyVersion Int
+  last4      String           @db.VarChar(4)
+  status     CredentialStatus
+  checkedAt  DateTime
+  createdAt  DateTime         @default(now())
+  updatedAt  DateTime         @updatedAt
+}
+
+// One row each time a key is checked with Anthropic, saved or not, so the checks can be capped.
+model KeyCheck {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@index([userId, createdAt])
+}
+
+// A chat with Claude that builds one part. `replyStartedAt` is set while a Claude call for the
+// session is in flight, so a second one is refused.
+model ChatSession {
+  id             String        @id @default(cuid())
+  rocketId       String
+  rocket         Rocket        @relation(fields: [rocketId], references: [id], onDelete: Cascade)
+  part           PartKind
+  status         SessionStatus @default(OPEN)
+  model          String        @db.VarChar(64)
+  replyStartedAt DateTime?
+  createdAt      DateTime      @default(now())
+  closedAt       DateTime?
+  messages       ChatMessage[]
+
+  @@index([rocketId, part])
+}
+
+model ChatMessage {
+  id        String      @id @default(cuid())
+  sessionId String
+  session   ChatSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  role      MessageRole
+  content   String      @db.VarChar(4000)
+  createdAt DateTime    @default(now())
+
+  @@index([sessionId, createdAt])
+}
+
+// One row for every Claude call, written before the call so the hourly cap counts calls in flight,
+// and given its token counts from the response. It outlives the idea it was for.
+model UsageEvent {
+  id               String    @id @default(cuid())
+  userId           String
+  user             User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  rocketId         String?
+  rocket           Rocket?   @relation(fields: [rocketId], references: [id], onDelete: SetNull)
+  kind             UsageKind
+  model            String    @db.VarChar(64)
+  inputTokens      Int       @default(0)
+  outputTokens     Int       @default(0)
+  cacheReadTokens  Int       @default(0)
+  cacheWriteTokens Int       @default(0)
+  createdAt        DateTime  @default(now())
+
+  @@index([userId, createdAt])
+  @@index([rocketId])
 }

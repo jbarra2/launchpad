@@ -19,6 +19,7 @@ Use the `HttpError` helpers (`badRequest`, `notFound`, `conflict`, and so on) fr
 | 411    | An auth request that declares no length                                                                        |
 | 413    | A body over 32 kb                                                                                              |
 | 415    | A body in a form the parser cannot read                                                                        |
+| 422    | Claude declined what was asked (a refusal). The person can rephrase and try again                              |
 | 429    | The user hit a cap, or Anthropic is limiting their key                                                         |
 | 500    | Unexpected. Log it (without secrets) and return a generic sentence                                             |
 | 503    | Claude is overloaded (529 from Anthropic)                                                                      |
@@ -44,4 +45,4 @@ When the service knows what a Prisma error means (a unique, foreign-key, or chec
 
 ## Claude errors
 
-Catch the SDK's typed classes, most specific first: `AuthenticationError`, then billing (402), `RateLimitError`, `InternalServerError`, and last the connection and timeout errors. Catching one broad class loses the difference between an error to retry and one to fix.
+Catch the SDK's typed classes, most specific first: `AuthenticationError`, then billing (402), `RateLimitError`, `InternalServerError`, and last the connection and timeout errors. Catching one broad class loses the difference between an error to retry and one to fix. `apps/api/src/lib/claude-errors.ts` does this in one place. Check `stop_reason` before reading what Claude wrote: a refusal is a 422, and an answer that cannot be used (empty, too long, or a draft that breaks a part's limits) is a 503.

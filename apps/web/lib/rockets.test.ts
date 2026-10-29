@@ -21,6 +21,7 @@ const rocket = {
   pitch: "P",
   status: "building",
   parts: [],
+  openSession: null,
   launchedAt: null,
   createdAt: NOW,
   updatedAt: NOW,

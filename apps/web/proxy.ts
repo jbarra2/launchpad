@@ -57,6 +57,42 @@ async function checkSession(cookieHeader: string | null): Promise<SessionCheck> 
   }
 }
 
+/**
+ * The Content-Security-Policy for a page. Scripts run only with this request's nonce, which Next
+ * reads from the request's own header and puts on its scripts and styles, and nothing loads from
+ * another site. Development adds what Next's dev server needs: eval for React's error overlay, and
+ * the styles it injects without a nonce.
+ */
+export function contentSecurityPolicy(nonce: string, development: boolean): string {
+  return [
+    "default-src 'self'",
+    `script-src 'self' 'nonce-${nonce}' 'strict-dynamic'${development ? " 'unsafe-eval'" : ""}`,
+    development ? "style-src 'self' 'unsafe-inline'" : `style-src 'self' 'nonce-${nonce}'`,
+    "img-src 'self' data: blob:",
+    "font-src 'self'",
+    "connect-src 'self'",
+    "object-src 'none'",
+    "base-uri 'self'",
+    "form-action 'self'",
+    "frame-ancestors 'none'",
+    ...(development ? [] : ["upgrade-insecure-requests"]),
+  ].join("; ");
+}
+
+/** 16 random bytes in base64, new for every request. */
+function makeNonce(): string {
+  return btoa(String.fromCharCode(...crypto.getRandomValues(new Uint8Array(16))));
+}
+
+/** Lets the page render, with the policy on the request (for Next) and on the response. */
+function render(request: NextRequest, policy: string): NextResponse {
+  const headers = new Headers(request.headers);
+  headers.set("content-security-policy", policy);
+  const response = NextResponse.next({ request: { headers } });
+  response.headers.set("Content-Security-Policy", policy);
+  return response;
+}
+
 function signInRedirect(request: NextRequest): NextResponse {
   const signIn = new URL("/sign-in", request.nextUrl);
   signIn.search = "";
@@ -75,16 +111,17 @@ function signInRedirect(request: NextRequest): NextResponse {
 export async function proxy(request: NextRequest): Promise<NextResponse> {
   const isPublic = PUBLIC_PATHS.has(request.nextUrl.pathname);
   const cookieHeader = request.headers.get("cookie");
+  const policy = contentSecurityPolicy(makeNonce(), process.env.NODE_ENV === "development");
 
   if (!hasSessionCookie(cookieHeader)) {
-    return isPublic ? NextResponse.next() : signInRedirect(request);
+    return isPublic ? render(request, policy) : signInRedirect(request);
   }
 
   const { state, setCookies } = await checkSession(cookieHeader);
   // A signed-in visitor on a sign-in page is sent on by the page itself, from the same answer it
   // renders with. One check per direction means the two can never disagree into a loop.
   const response =
-    state === "signed-out" && !isPublic ? signInRedirect(request) : NextResponse.next();
+    state === "signed-out" && !isPublic ? signInRedirect(request) : render(request, policy);
   // Onto the redirect too: an ended session's cookie is cleared, so it is not checked again on
   // every page.
   for (const cookie of setCookies) {

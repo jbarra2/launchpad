@@ -22,16 +22,21 @@ export const ROCKET_LAUNCHED = "This idea has launched, so it can no longer chan
 
 type Db = Pick<Prisma.TransactionClient, "rocket">;
 
-// Postgres sorts an enum in the order it was declared, which is the order of the parts.
-export const PARTS_IN_ORDER = { parts: { orderBy: { kind: "asc" } } } as const;
+// What an idea is read with: its parts in order (Postgres sorts an enum in the order it was
+// declared, which is the order of the parts), and the chat session open for its next part. There
+// is at most one, by the unique index in the claude migration.
+export const ROCKET_DETAIL = {
+  parts: { orderBy: { kind: "asc" } },
+  sessions: { where: { status: "OPEN" }, select: { id: true, part: true }, take: 1 },
+} as const;
 
 export const toDbKind = (kind: PartKind) => kind.toUpperCase() as DbPartKind;
 export const toDbStatus = (status: RocketStatus) => status.toUpperCase() as DbRocketStatus;
-const fromDbKind = (kind: DbPartKind) => kind.toLowerCase() as PartKind;
+export const fromDbKind = (kind: DbPartKind) => kind.toLowerCase() as PartKind;
 
 /** The idea with its parts, if it is this person's. Anything else is a 404. */
 export async function loadRocket(userId: string, id: string, db: Db = prisma) {
-  const rocket = await db.rocket.findFirst({ where: { id, userId }, include: PARTS_IN_ORDER });
+  const rocket = await db.rocket.findFirst({ where: { id, userId }, include: ROCKET_DETAIL });
   if (!rocket) {
     throw notFound(ROCKET_NOT_FOUND);
   }
@@ -82,6 +87,9 @@ export function toDetail(rocket: StoredRocket): RocketDetail {
       source: part.source === "CHAT" ? "chat" : "manual",
       updatedAt: part.updatedAt.toISOString(),
     })),
+    openSession: rocket.sessions[0]
+      ? { id: rocket.sessions[0].id, part: fromDbKind(rocket.sessions[0].part) }
+      : null,
     launchedAt: rocket.launchedAt?.toISOString() ?? null,
     createdAt: rocket.createdAt.toISOString(),
     updatedAt: rocket.updatedAt.toISOString(),

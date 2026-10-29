@@ -36,6 +36,14 @@ describe("DeleteAccount", () => {
     expect(await axe(container)).toHaveNoViolations();
   });
 
+  it("reads out what goes when it opens, and never the typed password", () => {
+    const { dialog, password } = open();
+    fireEvent.change(password, { target: { value: "typed-password" } });
+    expect(dialog).toHaveAccessibleDescription(
+      "This deletes your account and every idea on your pad. It cannot be undone. Enter your password to confirm.",
+    );
+  });
+
   it("sends nothing without a password", async () => {
     const { dialog } = open();
     await confirm(dialog);

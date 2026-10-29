@@ -2,6 +2,8 @@ import {
   buildKickoffMarkdown,
   buildPlanMarkdown,
   canWritePart,
+  chatSession,
+  CLAUDE_MODEL,
   createRocketBody,
   KICKOFF_FILE,
   nextPartKind,
@@ -18,13 +20,15 @@ import {
   type PartKind,
 } from "@launchpad/shared";
 import { Router, type Response } from "express";
-import { conflict, notFound } from "../errors/http-error.js";
+import { conflict, HttpError, notFound } from "../errors/http-error.js";
+import { requireUsableKey } from "../lib/api-keys.js";
+import { lockPerson } from "../lib/person-lock.js";
 import { prisma } from "../lib/prisma.js";
 import {
   attachedKinds,
   loadRocket,
   lockBuildingRocket,
-  PARTS_IN_ORDER,
+  ROCKET_DETAIL,
   ROCKET_NOT_FOUND,
   toDbKind,
   toDbStatus,
@@ -32,11 +36,27 @@ import {
   toSummary,
 } from "../lib/rockets.js";
 import { sessionOf } from "../lib/session.js";
+import {
+  callClaude,
+  claimReply,
+  contextOf,
+  loadSession,
+  OPENER_IN_FLIGHT,
+  ownSession,
+  releaseReply,
+  REPLY_IN_FLIGHT,
+  saveMessages,
+  SESSION_CLOSED,
+  SESSION_NOT_FOUND,
+  SESSION_OTHER_PART,
+  toChatSession,
+} from "../lib/sessions.js";
 
 export const rocketsRouter = Router();
 
 const LIMIT_REACHED = `You have ${ROCKET_LIMIT} ideas, the most the pad holds. Delete one to make room.`;
 const NOT_READY = "Add all six parts before you launch.";
+const ALL_PARTS_ON = "All six parts are on. Edit one by hand, or launch the idea.";
 
 // An id or a kind that could not name anything is a 404 before any query runs.
 rocketsRouter.param("id", (_req, _res, next, value: string) => {
@@ -82,7 +102,7 @@ rocketsRouter.post("/", async (req, res) => {
   const rocket = await prisma.$transaction(async (tx) => {
     // Two creates at once would both count 19 and both go in. Holding the person's own row makes
     // them take turns, so the second one counts the first.
-    await tx.$queryRaw`SELECT 1 FROM "user" WHERE "id" = ${user.id} FOR UPDATE`;
+    await lockPerson(tx, user.id);
     if ((await tx.rocket.count({ where: { userId: user.id } })) >= ROCKET_LIMIT) {
       throw conflict(LIMIT_REACHED);
     }
@@ -102,7 +122,7 @@ rocketsRouter.post("/", async (req, res) => {
           },
         },
       },
-      include: PARTS_IN_ORDER,
+      include: ROCKET_DETAIL,
     });
   });
   sendDetail(res, rocket, 201);
@@ -125,31 +145,123 @@ rocketsRouter.delete("/:id", async (req, res) => {
   res.status(204).end();
 });
 
-// Writes a part by hand: the next one, or one that is on already. The body is checked first, then
-// the idea is locked, so a launch cannot slip in between the check and the write.
+// Writes a part: by hand, or from the draft of a chat session (`sessionId`). The body is checked
+// first, then the idea is locked, so a launch cannot slip in between the check and the write.
 rocketsRouter.put("/:id/parts/:kind", async (req, res) => {
   const { user } = sessionOf(res);
   const kind = req.params.kind as PartKind;
+  const rocketId = req.params.id;
   const body = partBody.parse(req.body);
   const rocket = await prisma.$transaction(async (tx) => {
-    await lockBuildingRocket(tx, user.id, req.params.id);
+    await lockBuildingRocket(tx, user.id, rocketId);
     const attached = attachedKinds(
-      await tx.part.findMany({ where: { rocketId: req.params.id }, select: { kind: true } }),
+      await tx.part.findMany({ where: { rocketId }, select: { kind: true } }),
     );
     if (!canWritePart(attached, kind)) {
       // There is always a next part here: with all six on, every part can be written.
       const next = nextPartKind(attached) ?? kind;
       throw conflict(`Add the ${PART_INFO[next].name} before the ${PART_INFO[kind].name}.`);
     }
-    const data = { summary: body.summary, points: body.points, source: "MANUAL" as const };
+    if (body.sessionId) {
+      // The session must be this person's, on this idea, and for this part. That it is still
+      // open is checked by the write that closes it, below.
+      const session = await tx.chatSession.findFirst({
+        where: { ...ownSession(user.id, body.sessionId), rocketId },
+        select: { part: true },
+      });
+      if (!session) {
+        throw notFound(SESSION_NOT_FOUND);
+      }
+      if (session.part !== toDbKind(kind)) {
+        throw conflict(SESSION_OTHER_PART);
+      }
+    }
+    const data = {
+      summary: body.summary,
+      points: body.points,
+      source: body.sessionId ? ("CHAT" as const) : ("MANUAL" as const),
+    };
     await tx.part.upsert({
-      where: { rocketId_kind: { rocketId: req.params.id, kind: toDbKind(kind) } },
-      create: { rocketId: req.params.id, kind: toDbKind(kind), ...data },
+      where: { rocketId_kind: { rocketId, kind: toDbKind(kind) } },
+      create: { rocketId, kind: toDbKind(kind), ...data },
       update: data,
     });
-    return loadRocket(user.id, req.params.id, tx);
+    // The part's open session closes with the write: the one the draft came from, which must still
+    // be open, or one left open when the person chose to write the part by hand. Either way the next
+    // session builds the next part, and a launched idea never has a session open.
+    const closed = { status: "CLOSED" as const, closedAt: new Date(), replyStartedAt: null };
+    if (body.sessionId) {
+      const { count } = await tx.chatSession.updateMany({
+        where: { id: body.sessionId, status: "OPEN" },
+        data: closed,
+      });
+      if (count !== 1) {
+        throw conflict(SESSION_CLOSED);
+      }
+    } else {
+      await tx.chatSession.updateMany({
+        where: { rocketId, part: toDbKind(kind), status: "OPEN" },
+        data: closed,
+      });
+    }
+    return loadRocket(user.id, rocketId, tx);
   });
   sendDetail(res, rocket);
+});
+
+// Opens a chat session for the next part, or answers with the one already open. Claude writes the
+// first question once the session exists; if that call fails, the next request asks again.
+rocketsRouter.post("/:id/sessions", async (req, res) => {
+  const { user } = sessionOf(res);
+  const rocketId = req.params.id;
+  const { sessionId, created } = await prisma.$transaction(async (tx) => {
+    // Holding the idea makes two requests take turns, so they cannot open two sessions.
+    await lockBuildingRocket(tx, user.id, rocketId);
+    const next = nextPartKind(
+      attachedKinds(await tx.part.findMany({ where: { rocketId }, select: { kind: true } })),
+    );
+    if (!next) {
+      throw conflict(ALL_PARTS_ON);
+    }
+    const open = await tx.chatSession.findFirst({
+      where: { rocketId, status: "OPEN" },
+      select: { id: true },
+    });
+    if (open) {
+      return { sessionId: open.id, created: false };
+    }
+    await requireUsableKey(tx, user.id);
+    const session = await tx.chatSession.create({
+      data: { rocketId, part: toDbKind(next), model: CLAUDE_MODEL },
+      select: { id: true },
+    });
+    return { sessionId: session.id, created: true };
+  });
+
+  let session = await loadSession(user.id, sessionId);
+  if (session.messages.length === 0) {
+    // A second Start, from another tab or a double tap, finds the first question on its way.
+    const claim = await claimReply(sessionId).catch((error: unknown) => {
+      throw error instanceof HttpError && error.message === REPLY_IN_FLIGHT
+        ? conflict(OPENER_IN_FLIGHT)
+        : error;
+    });
+    try {
+      const fresh = await loadSession(user.id, sessionId);
+      if (fresh.messages.length === 0) {
+        const opener = await callClaude(fresh, "INTERVIEW", (claude) =>
+          claude.reply(contextOf(fresh), []),
+        );
+        await saveMessages(sessionId, claim, [
+          { role: "ASSISTANT", content: opener, createdAt: new Date() },
+        ]);
+      }
+    } finally {
+      await releaseReply(sessionId, claim);
+    }
+    session = await loadSession(user.id, sessionId);
+  }
+  res.status(created ? 201 : 200).json(chatSession.parse(toChatSession(session)));
 });
 
 rocketsRouter.post("/:id/launch", async (req, res) => {

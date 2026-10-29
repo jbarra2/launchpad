@@ -458,19 +458,23 @@ describe("deleteAccountBody", () => {
 
 describe("meResponse", () => {
   const user = { id: "u1", name: "Ana", email: "ana@example.com" };
+  const apiKey = { status: "none" } as const;
 
-  it("holds the signed-in person and nothing else", () => {
-    expect(meResponse.parse({ user })).toEqual({ user });
+  it("holds the signed-in person and the state of their Claude key, and nothing else", () => {
+    expect(meResponse.parse({ user, apiKey })).toEqual({ user, apiKey });
   });
 
   it("drops fields that are not in the contract, such as a password hash or a token", () => {
     const parsed = meResponse.parse({
       user: { ...user, password: "hash", token: "t", emailVerified: true },
+      apiKey,
+      session: { token: "t" },
     });
-    expect(parsed).toEqual({ user });
+    expect(parsed).toEqual({ user, apiKey });
   });
 
-  it("refuses a response with no user", () => {
-    expect(meResponse.safeParse({}).success).toBe(false);
+  it("refuses a response with no user, or with no key state", () => {
+    expect(meResponse.safeParse({ apiKey }).success).toBe(false);
+    expect(meResponse.safeParse({ user }).success).toBe(false);
   });
 });

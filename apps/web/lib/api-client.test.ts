@@ -1,5 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { apiErrorMessage, apiSend, detailErrors, SIGNED_OUT_MESSAGE } from "./api-client";
+import {
+  apiErrorMessage,
+  apiSend,
+  claudeErrorMessage,
+  detailErrors,
+  SIGNED_OUT_MESSAGE,
+} from "./api-client";
+import { NETWORK_MESSAGE } from "./auth-client";
 import { formatDay, partsToGo, progressText } from "./format";
 
 const fetchMock = vi.fn<typeof fetch>();
@@ -119,5 +126,38 @@ describe("the words for progress and dates", () => {
   it("prints a day in UTC, the same on the server and in the browser", () => {
     // Already Oct 28 in UTC, and still Oct 27 in the zone the tests run in.
     expect(formatDay("2026-10-28T00:30:00.000Z")).toBe("Oct 28, 2026");
+  });
+});
+
+describe("claudeErrorMessage", () => {
+  const failure = (status: number, message?: string) => ({
+    ok: false as const,
+    status,
+    message,
+    details: [],
+  });
+
+  it("shows the API's sentence for a limit or a problem with Claude", () => {
+    expect(claudeErrorMessage(failure(429, "This session has 30 answers."), "x")).toBe(
+      "This session has 30 answers.",
+    );
+    expect(claudeErrorMessage(failure(503, "Claude is busy; try again."), "x")).toBe(
+      "Claude is busy; try again.",
+    );
+    expect(claudeErrorMessage(failure(504, "Claude took too long; try again."), "x")).toBe(
+      "Claude took too long; try again.",
+    );
+  });
+
+  it("keeps the page's own sentence for a 500, or when there is none", () => {
+    expect(
+      claudeErrorMessage(failure(500, "Something went wrong on our side."), "Try again."),
+    ).toBe("Try again.");
+    expect(claudeErrorMessage(failure(409), "Try again.")).toBe("Try again.");
+  });
+
+  it("says when the network or the sign-in is the problem", () => {
+    expect(claudeErrorMessage(failure(0), "x")).toBe(NETWORK_MESSAGE);
+    expect(claudeErrorMessage(failure(401, "Sign in to continue."), "x")).toBe(SIGNED_OUT_MESSAGE);
   });
 });

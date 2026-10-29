@@ -253,10 +253,11 @@ Rocket        id, userId→user (Cascade), name ≤80, pitch ≤200, status, lau
               @@index([userId, status, updatedAt])
 Part          id, rocketId (Cascade), kind, summary ≤600, points String[] ≤8, source chat|manual, updatedAt
               @@unique([rocketId, kind])
-ChatSession   id, rocketId (Cascade), part PartKind, status, model, createdAt, closedAt?
+ChatSession   id, rocketId (Cascade), part PartKind, status, model, replyStartedAt?, createdAt, closedAt?
 ChatMessage   id, sessionId (Cascade), role, content ≤4000, createdAt          @@index([sessionId, createdAt])
 ApiCredential userId @id (Cascade), ciphertext Bytes, iv Bytes, tag Bytes, keyVersion, last4, status, checkedAt
-UserSettings  userId @id (Cascade), model  (opus-5-5 | sonnet-5-5 | haiku-5-5)
+KeyCheck      id, userId (Cascade), createdAt                                   @@index([userId, createdAt])
+UserSettings  userId @id (Cascade), model  (opus-5-5 | sonnet-5-5 | haiku-5-5)   (later, with the model picker)
 UsageEvent    id, userId (Cascade), rocketId? (SetNull), kind interview|draft, model,
               inputTokens, outputTokens, cacheReadTokens, cacheWriteTokens, createdAt   @@index([userId, createdAt])
 ```
@@ -265,7 +266,10 @@ A raw-SQL migration, with a comment in the schema pointing to it, adds:
 
 - one open session per rocket (`CREATE UNIQUE INDEX … ON "ChatSession"("rocketId") WHERE status='OPEN'`);
 - a check of `cardinality(points) <= 8`;
-- a check that `(status='LAUNCHED') = ("launchedAt" IS NOT NULL)`.
+- a check that `(status='LAUNCHED') = ("launchedAt" IS NOT NULL)`;
+- a check that a session is closed exactly when it has a closing time, and checks on a saved key's shape and on token counts.
+
+`replyStartedAt` marks a session whose Claude call is in flight, so a second one is refused; a mark older than twice the timeout is let go. Writing a part closes the open session for that part in the same transaction, whether the part came from its draft or was written by hand. `KeyCheck` counts key checks, saved or not, for the cap of 10 an hour.
 
 ### REST API
 
@@ -281,7 +285,7 @@ Every route requires a session except `/health` and `/api/auth/*`. Every query i
 | `GET /api/me/usage`                              | Tokens this month by model (Sprint 11)                                                     |
 | `GET /api/rockets?status=` · `POST /api/rockets` | List mine · create, with the Engine in the same transaction                                |
 | `GET` / `PATCH` / `DELETE /api/rockets/:id`      | Read with parts and the open session · rename or re-pitch · delete                         |
-| `PUT /api/rockets/:id/parts/:kind`               | Write by hand or attach a part. 409 if out of order or the rocket is launched              |
+| `PUT /api/rockets/:id/parts/:kind`               | Write by hand, or attach a draft with `sessionId`. 409 if out of order or launched         |
 | `POST /api/rockets/:id/sessions`                 | Open a session for the next part (or return the open one); Claude writes the opener        |
 | `GET /api/sessions/:id`                          | Messages plus this session's token total. Closed sessions are read-only                    |
 | `GET /api/rockets/:id/sessions?part=`            | Past sessions for a part: id, status, date (Sprint 11)                                     |
@@ -303,7 +307,9 @@ All of it lives in `apps/api/src/lib/claude.ts`. Its interface is `reply`, `draf
   - The system prompt is frozen: the **friendly coach** role plus all six part guides. The coach asks one or two questions at a time, points out a gap once and gently, and keeps replies short. Top-level `cache_control: { type: "ephemeral" }` caches the prompt.
   - Then come the rocket so far, as the first user message, and the transcript.
 - **Draft:** `client.messages.parse` with `output_config: { format: zodOutputFormat(PartDraft) }`, from `@anthropic-ai/sdk/helpers/zod`, at effort `medium`. The result is checked again with the same shared Zod schema as a hand-written part.
-- **Refusals:** the server-side refusal fallback is on (`fallbacks: "default"` with the matching beta header). The exact shape is confirmed against the Claude API reference when the code is written. A final `stop_reason: "refusal"` shows "Claude declined that; try rephrasing."
+- **Refusals:** the server-side refusal fallback is on: `client.beta.messages.create` with `fallbacks: "default"` and the beta `server-side-fallback-2026-07-01`. A final `stop_reason: "refusal"` is a 422 with "Claude declined that; try rephrasing."
+- **Draft parsing:** the draft call uses `output_config.format` (from `betaZodOutputFormat`) on `create`, and the app parses the text itself after checking `stop_reason`, because the SDK's `parse` throws an error that carries Claude's text.
+- **History:** only the text of each message is stored and sent back, with no thinking blocks, so the conversation is append-only by construction.
 - **Key check:** `client.models.list()`, which costs no tokens.
 - **Errors**, checked most specific first, each shown as a sentence the user can act on:
 

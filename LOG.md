@@ -435,3 +435,88 @@ deleted, and every idea, launched or not, counts toward the limit of 20.
   off.
 - `npm run verify`, `npm run build`, and `npm run test:e2e` pass, with 902 tests (710 before) and
   23 end-to-end tests (14 before). No package was added or changed.
+
+## 9. The saved Claude key and the chat that builds a part (Claude Code)
+
+**Asked:**
+
+Build the next stop of the plan: a person saves their own Claude key, then builds each part of an
+idea in a chat with Claude, edits the draft, and attaches it. Choices made while planning: pin the
+newest release of Anthropic's SDK; refuse hidden characters in every part and remove them from
+Claude's drafts, without fencing KICKOFF.md; show the draft on the chat screen; and let writing a
+part by hand end the session open for it. Before the commit: warn in the End session dialog that an
+ended chat cannot be reopened, so nobody expects to return to it.
+
+**What came back / what changed:**
+
+- A Claude key is pasted in Settings and checked with Anthropic before anything is stored, by
+  listing models, which costs no tokens. It is stored encrypted (AES-256-GCM, a new IV for every
+  write, and the person's id as associated data), and only its last 4 characters are ever shown.
+  It can be replaced or removed. Checking keys is capped per person per hour. A key Anthropic stops
+  accepting, or one that can no longer be opened, shows as no longer working.
+- The rocket page offers Start session for the next part (or Continue session), next to Write it
+  myself. Without a key, it points to Settings, and so does the Getting started card. Claude asks
+  the first question, then one or two at a time, as a friendly coach. The system prompt never
+  changes, so it is cached. Every call uses Claude Opus 5.5 with the server-side refusal fallback,
+  and writes its token counts, with the model that answered.
+- Limits: 2,000 characters per message, with a live count; 30 answers per session; one reply at a
+  time per session; and 60 Claude calls per person per hour, counting calls still in flight, so
+  requests at the same moment cannot pass it together. Every failure is a sentence a person can act
+  on: a refused key, no credit, a limited key, Claude busy or slow, or a refusal. Claude's own error
+  text never reaches the page or the log.
+- Build this part asks Claude for a draft in a fixed shape. It is checked against the same rules
+  as a part written by hand, hidden characters are taken out, and it opens in the part form on the
+  chat screen. Attach part writes the part and closes the session in one step. Writing that part by
+  hand instead closes the session too, so a launched idea never has one open.
+- End session asks first. The dialog says the chat cannot be reopened, that a new session
+  starts over without its messages, and that Build this part, then Attach part, keeps the work.
+  The part form says the same when writing the part by hand would end the session. Every confirm
+  dialog now gives its warning as the dialog's description, so a screen reader reads it out as the
+  dialog opens, and a field in the dialog, such as the password for deleting the account, stays out
+  of it.
+- Every part, idea, and message refuses hidden characters: format characters and the characters
+  Unicode shows as nothing, such as direction overrides, zero-width spaces, and tag characters
+  that can spell out a sentence a reader cannot see. The joiners and style selectors that emoji
+  need are kept.
+- Every page now carries a Content-Security-Policy with a new nonce per request, so scripts run
+  only if the page itself put them there, and every page is rendered for its request. Claude's
+  replies are shown as plain text.
+- The chat screen is a full-screen chat on a phone, has the rocket above it on a tablet, and the
+  rocket beside it on a desktop. The answer box stays at the bottom of the screen. Enter sends with
+  a keyboard, and adds a line on a touch screen.
+- Tests were written first for each rule, from a threat model of how the key, the sessions, and the
+  limits could be abused. The API tests replace Anthropic's client with a stand-in in every file,
+  and point it at a closed port on this machine, so no test reaches the network. The end-to-end tests run the built app against a stand-in server on
+  this machine, from saving a key to attaching a part, and check that the key appears in no page,
+  answer, or printed line.
+- Every protection was broken on purpose, one at a time, and a test caught each one: 117 breakages,
+  including three of the migration's rules on a fresh test database and the per-request rendering
+  through a rebuilt app. One breakage was missed at first, the rule that a reply is saved only into
+  an open session, and a test was added for it.
+- Three rounds of independent review by fresh agents, each a security review and a review of the
+  tests, plus a code review. The first security review found that tag characters, which can spell
+  out a sentence nobody sees, got past the hidden-character rule; the rule now refuses every format
+  character and every character shown as nothing. The later security rounds found nothing; their
+  notes led to refusing the last few ignorable characters and to refusing, at startup, a setting
+  that would add headers to every Claude call. The code review found that attaching a draft from an
+  ended session could close the session open at the time, that Anthropic's low-credit answer showed
+  as a general error, that a key the server could no longer open still showed as working, that a
+  reply cut off at the token cap was kept, that opening the draft lost an answer not yet sent, that
+  a late reply could release a newer request's turn, and that a refused old key could mark a newly
+  saved one as not working. The test reviews found a log check that could never fail, limits tested
+  on one side only, lock tests that passed by timing (now held open in the database), a stand-in
+  that answered unlike the real client, and the nonce checked on one page only. Each was fixed with
+  a test, and each fix was proven by breaking the code. A review of the End session warning found
+  that building the part alone does not keep the work, since the draft is saved only when it is
+  attached, and the dialog now says both steps.
+- Checked live in a real browser against the built app at 390, 768, and 1280 pixels wide, in light
+  and dark: Settings with and without a key, the pad, the rocket page with and without a key and
+  with a session open, the part form, and the chat. The walk found that the chat page failed to
+  start in the browser, because the confirm dialog's form sat inside the answer form; it was moved
+  out. The screenshots led to the newest message being scrolled clear of the answer box. The End
+  session and Delete account dialogs were opened at each width and scheme: the browser gives the
+  warning as each dialog's description, focus starts on Cancel (on the password field when deleting
+  the account), and Escape closes the dialog and puts focus back on its button.
+- `npm run verify`, `npm run build`, and `npm run test:e2e` pass, with 1,132 tests (902 before) and
+  41 end-to-end tests (23 before). One package was added, Anthropic's SDK, pinned to one version;
+  its install was checked for install scripts, sources, and known advisories.

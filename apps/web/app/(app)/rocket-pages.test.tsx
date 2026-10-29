@@ -1,6 +1,7 @@
 import {
   PART_KINDS,
   ROCKET_LIMIT,
+  type ApiKeyState,
   type PartKind,
   type RocketDetail,
   type RocketSummary,
@@ -11,7 +12,11 @@ import { axe } from "@/test-utils/axe";
 
 const user = { id: "u1", name: "Ana", email: "ana@example.com" };
 const requireUser = vi.fn(async (_path: string) => user);
-vi.mock("@/lib/session", () => ({ requireUser: (p: string) => requireUser(p) }));
+const getApiKeyState = vi.fn(async (): Promise<ApiKeyState> => ({ status: "none" }));
+vi.mock("@/lib/session", () => ({
+  requireUser: (p: string) => requireUser(p),
+  getApiKeyState: () => getApiKeyState(),
+}));
 const getRockets = vi.fn(async (): Promise<RocketSummary[]> => []);
 const getRocket = vi.fn(async (_id: string): Promise<RocketDetail> => detail());
 vi.mock("@/lib/rockets", () => ({
@@ -34,7 +39,11 @@ const { default: AppLayout } = await import("./layout");
 
 const NOW = "2026-10-27T15:00:00.000Z";
 
-function detail(kinds: readonly PartKind[] = ["engine"], launched = false): RocketDetail {
+function detail(
+  kinds: readonly PartKind[] = ["engine"],
+  launched = false,
+  openSession: RocketDetail["openSession"] = null,
+): RocketDetail {
   return {
     id: "crocket1",
     name: "Recipe Swap",
@@ -47,11 +56,14 @@ function detail(kinds: readonly PartKind[] = ["engine"], launched = false): Rock
       source: "manual",
       updatedAt: NOW,
     })),
+    openSession,
     launchedAt: launched ? NOW : null,
     createdAt: NOW,
     updatedAt: NOW,
   };
 }
+
+const validKey: ApiKeyState = { status: "valid", last4: "abcd", checkedAt: NOW };
 
 function summary(id: string, name: string, parts: PartKind[], launched = false): RocketSummary {
   return {
@@ -74,6 +86,7 @@ const partProps = (kind: string, id = "crocket1") =>
 beforeEach(() => {
   getRockets.mockResolvedValue([]);
   getRocket.mockImplementation(async () => detail());
+  getApiKeyState.mockResolvedValue({ status: "none" });
 });
 
 describe("a page whose session check refuses", () => {
@@ -258,7 +271,79 @@ describe("the rocket page", () => {
   });
 });
 
+describe("building the next part with Claude", () => {
+  it("points to Settings when there is no key, and Write it myself still works", async () => {
+    const { container } = render(<AppLayout>{await RocketPage(rocketProps())}</AppLayout>);
+    expect(screen.getByRole("link", { name: "Add a Claude key in Settings" })).toHaveAttribute(
+      "href",
+      "/settings",
+    );
+    expect(screen.queryByRole("button", { name: /Start session/ })).not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Write it myself for the Fuel tank" })).toBeVisible();
+    expect(await axe(container)).toHaveNoViolations();
+  });
+
+  it("offers Start session with a working key", async () => {
+    getApiKeyState.mockResolvedValue(validKey);
+    const { container } = render(<AppLayout>{await RocketPage(rocketProps())}</AppLayout>);
+    expect(screen.getByRole("button", { name: "Start session for the Fuel tank" })).toBeVisible();
+    expect(screen.queryByText(/Add a Claude key/)).not.toBeInTheDocument();
+    expect(await axe(container)).toHaveNoViolations();
+  });
+
+  it("offers Continue session when one is open for the next part", async () => {
+    getApiKeyState.mockResolvedValue(validKey);
+    getRocket.mockImplementation(async () => detail(["engine"], false, { id: "s1", part: "fuel" }));
+    render(<AppLayout>{await RocketPage(rocketProps())}</AppLayout>);
+    expect(
+      screen.getByRole("link", { name: "Continue session for the Fuel tank" }),
+    ).toHaveAttribute("href", "/rockets/crocket1/session");
+    expect(screen.queryByRole("button", { name: /Start session/ })).not.toBeInTheDocument();
+  });
+
+  it("says so when the key no longer works", async () => {
+    getApiKeyState.mockResolvedValue({ ...validKey, status: "invalid" });
+    render(<AppLayout>{await RocketPage(rocketProps())}</AppLayout>);
+    expect(screen.getByText(/Your Claude key no longer works/)).toBeVisible();
+    expect(screen.getByRole("link", { name: "Replace it in Settings" })).toHaveAttribute(
+      "href",
+      "/settings",
+    );
+  });
+
+  it("says which part was attached, and that a session ended", async () => {
+    render(<AppLayout>{await RocketPage(rocketProps({ attached: "fuel" }))}</AppLayout>);
+    expect(screen.getByRole("status")).toHaveTextContent("The Fuel tank is attached.");
+    document.body.innerHTML = "";
+    render(<AppLayout>{await RocketPage(rocketProps({ notice: "ended" }))}</AppLayout>);
+    expect(screen.getByRole("status")).toHaveTextContent("The session has ended.");
+  });
+
+  it("offers no session on a launched idea", async () => {
+    getApiKeyState.mockResolvedValue(validKey);
+    getRocket.mockImplementation(async () => detail(PART_KINDS, true));
+    render(<AppLayout>{await RocketPage(rocketProps())}</AppLayout>);
+    expect(screen.queryByRole("button", { name: /Start session/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /Continue session/ })).not.toBeInTheDocument();
+  });
+});
+
 describe("the part page", () => {
+  it("says that saving by hand ends the session open for that part", async () => {
+    getRocket.mockImplementation(async () => detail(["engine"], false, { id: "s1", part: "fuel" }));
+    const { container } = render(<AppLayout>{await PartPage(partProps("fuel"))}</AppLayout>);
+    expect(screen.getByText(/Saving this ends your open session with Claude/)).toBeVisible();
+    expect(screen.getByText(/you can't come back to that chat/)).toBeVisible();
+    expect(screen.getByRole("link", { name: "Go back to the session" })).toHaveAttribute(
+      "href",
+      "/rockets/crocket1/session",
+    );
+    expect(await axe(container)).toHaveNoViolations();
+    document.body.innerHTML = "";
+    render(<AppLayout>{await PartPage(partProps("engine"))}</AppLayout>);
+    expect(screen.queryByText(/Saving this ends/)).not.toBeInTheDocument();
+  });
+
   it("writes the next part, with an empty form", async () => {
     const { container } = render(<AppLayout>{await PartPage(partProps("fuel"))}</AppLayout>);
     expect(requireUser).toHaveBeenCalledWith("/rockets/crocket1/parts/fuel");

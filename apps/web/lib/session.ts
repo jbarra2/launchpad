@@ -1,4 +1,4 @@
-import { meResponse, type MeResponse } from "@launchpad/shared";
+import { meResponse, type ApiKeyState, type MeResponse } from "@launchpad/shared";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { cache } from "react";
@@ -8,8 +8,8 @@ import { safeNextPath } from "./safe-path";
 
 export type SessionUser = MeResponse["user"];
 
-/** The signed-in person, or null. Asked once per request, and not at all without a cookie. */
-export const getSessionUser = cache(async (): Promise<SessionUser | null> => {
+/** /api/me, or null when nobody is signed in. Asked once per request, and not at all without a cookie. */
+const getMe = cache(async (): Promise<MeResponse | null> => {
   if (!hasSessionCookie((await headers()).get("cookie"))) {
     return null;
   }
@@ -24,8 +24,21 @@ export const getSessionUser = cache(async (): Promise<SessionUser | null> => {
   if (!parsed.success) {
     throw new ApiUnavailableError();
   }
-  return parsed.data.user;
+  return parsed.data;
 });
+
+/** The signed-in person, or null. */
+export async function getSessionUser(): Promise<SessionUser | null> {
+  return (await getMe())?.user ?? null;
+}
+
+/**
+ * Whether the signed-in person has a Claude key that works, and its last 4 characters. The API
+ * never sends more of the key than that, so neither can a page. Call it after requireUser.
+ */
+export async function getApiKeyState(): Promise<ApiKeyState> {
+  return (await getMe())?.apiKey ?? { status: "none" };
+}
 
 /**
  * Every signed-in page calls this itself. A layout is not enough, because it does not run again

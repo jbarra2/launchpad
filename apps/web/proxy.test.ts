@@ -2,7 +2,7 @@
 import { unstable_doesMiddlewareMatch } from "next/experimental/testing/server";
 import { NextRequest } from "next/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { PUBLIC_PATHS, config, proxy } from "./proxy";
+import { PUBLIC_PATHS, config, contentSecurityPolicy, proxy } from "./proxy";
 
 const WEB = "http://localhost:3100";
 const SESSION = "launchpad.session_token=abc.def%3D";
@@ -217,5 +217,51 @@ describe("a visitor with a session cookie", () => {
       expect(passedThrough(response)).toBe(true);
       expect(response.headers.getSetCookie()).toEqual([]);
     }
+  });
+});
+
+describe("the Content-Security-Policy", () => {
+  const policyOf = (response: Response) => response.headers.get("content-security-policy") ?? "";
+
+  it("is on every page that renders, with a nonce that is new for each request", async () => {
+    const first = await proxy(request("/"));
+    const second = await proxy(request("/sign-in"));
+    const nonces = [first, second].map((r) => /'nonce-([^']+)'/.exec(policyOf(r))?.[1]);
+    expect(nonces[0]).toMatch(/^[A-Za-z0-9+/]{22}==$/);
+    expect(nonces[1]).toMatch(/^[A-Za-z0-9+/]{22}==$/);
+    expect(nonces[0]).not.toBe(nonces[1]);
+    // Outside development, the policy sent is the strict one.
+    expect(policyOf(first)).not.toMatch(/unsafe-eval|unsafe-inline/);
+    expect(policyOf(first)).toContain("upgrade-insecure-requests");
+  });
+
+  it("is handed to Next on the request too, so Next puts the nonce on its own scripts", async () => {
+    fetchMock.mockResolvedValue(answer(200, signedIn));
+    const response = await proxy(request("/pad", { cookie: SESSION }));
+    expect(passedThrough(response)).toBe(true);
+    expect(response.headers.get("x-middleware-request-content-security-policy")).toBe(
+      policyOf(response),
+    );
+  });
+
+  it("lets scripts run only with the nonce, and loads nothing from another site", () => {
+    const policy = contentSecurityPolicy("abc", false);
+    expect(policy).toContain("default-src 'self'");
+    expect(policy).toContain("script-src 'self' 'nonce-abc' 'strict-dynamic'");
+    expect(policy).toContain("style-src 'self' 'nonce-abc'");
+    expect(policy).toContain("object-src 'none'");
+    expect(policy).toContain("base-uri 'self'");
+    expect(policy).toContain("form-action 'self'");
+    expect(policy).toContain("frame-ancestors 'none'");
+    expect(policy).toContain("connect-src 'self'");
+    expect(policy).not.toMatch(/unsafe-inline|unsafe-eval|\*/);
+  });
+
+  it("allows what the development server needs, there only", () => {
+    const policy = contentSecurityPolicy("abc", true);
+    expect(policy).toContain("script-src 'self' 'nonce-abc' 'strict-dynamic' 'unsafe-eval'");
+    expect(policy).toContain("style-src 'self' 'unsafe-inline'");
+    expect(policy).not.toContain("upgrade-insecure-requests");
+    expect(contentSecurityPolicy("abc", false)).toContain("upgrade-insecure-requests");
   });
 });

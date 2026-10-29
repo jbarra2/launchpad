@@ -89,12 +89,21 @@ describe("the helpers that call the API from the server", () => {
   });
 
   it("keeps the server fetch helper to the session and rocket helpers", () => {
-    expect(importersOf("lib/api").sort()).toEqual(["lib/rockets.ts", "lib/session.ts"]);
+    expect(importersOf("lib/api").sort()).toEqual([
+      "lib/rockets.ts",
+      "lib/session.ts",
+      "lib/sessions.ts",
+    ]);
   });
 
-  it.each(["lib/session", "lib/rockets"])("keeps %s to server pages", (helper) => {
+  it.each([
+    ["lib/session", 3],
+    ["lib/rockets", 3],
+    ["lib/sessions", 1],
+  ])("keeps %s to server pages", (helper, atLeast) => {
     const importers = importersOf(helper);
-    expect(importers.length).toBeGreaterThan(2);
+    // The scan finds the pages it should, so an empty result cannot pass for a clean one.
+    expect(importers.length).toBeGreaterThanOrEqual(atLeast);
     for (const file of importers) {
       expect(file).toMatch(/^app\/.*(page|layout)\.tsx$/);
       expect(fs.readFileSync(path.join(webRoot, file), "utf8")).not.toMatch(/["']use client["']/);
@@ -104,7 +113,13 @@ describe("the helpers that call the API from the server", () => {
 
 const user = { id: "u1", name: "Ana", email: "ana@example.com" };
 const requireUser = vi.fn(async (_path: string) => user);
-vi.mock("@/lib/session", () => ({ requireUser: (p: string) => requireUser(p) }));
+type KeyState =
+  { status: "none" } | { status: "valid" | "invalid"; last4: string; checkedAt: string };
+const getApiKeyState = vi.fn(async (): Promise<KeyState> => ({ status: "none" }));
+vi.mock("@/lib/session", () => ({
+  requireUser: (p: string) => requireUser(p),
+  getApiKeyState: () => getApiKeyState(),
+}));
 const getRockets = vi.fn(async () => [] as unknown[]);
 vi.mock("@/lib/rockets", () => ({ getRockets: () => getRockets() }));
 vi.mock("@/lib/navigate", () => ({ navigate: vi.fn(), replaceLocation: vi.fn() }));
@@ -117,6 +132,7 @@ const { default: AppLayout } = await import("./layout");
 beforeEach(() => {
   requireUser.mockClear();
   getRockets.mockResolvedValue([]);
+  getApiKeyState.mockResolvedValue({ status: "none" });
 });
 
 const noSearch = { searchParams: Promise.resolve({}) } as never;
@@ -126,7 +142,7 @@ describe("a signed-in page whose session check refuses", () => {
     requireUser.mockRejectedValueOnce(new Error("redirect:/sign-in?next=%2Fpad"));
     await expect(PadPage(noSearch)).rejects.toThrow("redirect:/sign-in?next=%2Fpad");
     requireUser.mockRejectedValueOnce(new Error("redirect:/sign-in?next=%2Fsettings"));
-    await expect(SettingsPage()).rejects.toThrow("redirect:/sign-in?next=%2Fsettings");
+    await expect(SettingsPage(noSearch)).rejects.toThrow("redirect:/sign-in?next=%2Fsettings");
   });
 });
 
@@ -143,7 +159,7 @@ describe("the pad", () => {
 
 describe("Settings", () => {
   it("shows the account and holds Sign out", async () => {
-    const { container } = render(<AppLayout>{await SettingsPage()}</AppLayout>);
+    const { container } = render(<AppLayout>{await SettingsPage(noSearch)}</AppLayout>);
     expect(requireUser).toHaveBeenCalledWith("/settings");
     expect(screen.getByText("Ana")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Sign out" })).toBeInTheDocument();
@@ -151,7 +167,7 @@ describe("Settings", () => {
   });
 
   it("shows only part of the email, and the full address is nowhere in the page", async () => {
-    const { container } = render(<AppLayout>{await SettingsPage()}</AppLayout>);
+    const { container } = render(<AppLayout>{await SettingsPage(noSearch)}</AppLayout>);
     expect(screen.getByText("a•••@e•••.com")).toBeInTheDocument();
     // A screen reader is told why it reads dots.
     expect(screen.getByText("a•••@e•••.com").closest("dd")).toHaveTextContent(
@@ -159,5 +175,53 @@ describe("Settings", () => {
     );
     expect(container.innerHTML).not.toContain("ana@");
     expect(container.innerHTML).not.toContain("example");
+  });
+
+  it("asks for a Claude key when none is saved, with how to get one", async () => {
+    const { container } = render(<AppLayout>{await SettingsPage(noSearch)}</AppLayout>);
+    expect(screen.getByRole("heading", { level: 2, name: "Claude key" })).toBeInTheDocument();
+    const field = screen.getByLabelText("Your Claude key");
+    expect(field).toHaveAttribute("type", "password");
+    expect(field).toHaveAttribute("autocomplete", "off");
+    expect(screen.getByRole("button", { name: "Save and check" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Claude Console under API keys/ })).toHaveAttribute(
+      "href",
+      "https://platform.claude.com/settings/keys",
+    );
+    expect(await axe(container)).toHaveNoViolations();
+  });
+
+  it("shows a saved key by its last 4 characters only, with Replace and Remove", async () => {
+    getApiKeyState.mockResolvedValue({
+      status: "valid",
+      last4: "abcd",
+      checkedAt: "2026-10-28T10:00:00.000Z",
+    });
+    const { container } = render(<AppLayout>{await SettingsPage(noSearch)}</AppLayout>);
+    expect(screen.getByText("••••abcd")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Replace key" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Remove key" })).toBeInTheDocument();
+    expect(screen.queryByLabelText("Your Claude key")).not.toBeInTheDocument();
+    expect(await axe(container)).toHaveNoViolations();
+  });
+
+  it("says when the saved key no longer works", async () => {
+    getApiKeyState.mockResolvedValue({
+      status: "invalid",
+      last4: "abcd",
+      checkedAt: "2026-10-28T10:00:00.000Z",
+    });
+    render(<AppLayout>{await SettingsPage(noSearch)}</AppLayout>);
+    expect(screen.getByText(/This key no longer works/)).toBeInTheDocument();
+  });
+
+  it("says the key was saved or removed, from its own list only", async () => {
+    const page = (notice: string) =>
+      SettingsPage({ searchParams: Promise.resolve({ notice }) } as never);
+    render(<AppLayout>{await page("key-saved")}</AppLayout>);
+    expect(screen.getByRole("status")).toHaveTextContent("Your Claude key is saved.");
+    document.body.innerHTML = "";
+    render(<AppLayout>{await page("<script>")}</AppLayout>);
+    expect(screen.queryByText(/script/)).not.toBeInTheDocument();
   });
 });

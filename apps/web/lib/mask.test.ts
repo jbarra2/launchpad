@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { maskEmail } from "./mask";
+import { maskEmail, maskKey } from "./mask";
 
 describe("maskEmail", () => {
   it("shows the first letters of the name, the first letter of the domain, and its ending", () => {
@@ -57,5 +57,13 @@ describe("maskEmail", () => {
     expect(masked).not.toContain(email);
     expect(masked).not.toContain(`${local}@`);
     expect(masked).not.toContain(domainName.length > 1 ? domainName : `@${domainName}.`);
+  });
+});
+
+describe("maskKey", () => {
+  it("shows a saved key by its last 4 characters only", () => {
+    expect(maskKey("abcd")).toBe("••••abcd");
+    // The API sends 4 characters at most, but nothing more would ever be shown.
+    expect(maskKey("sk-ant-good-1234")).toBe("••••1234");
   });
 });

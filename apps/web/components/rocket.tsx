@@ -41,8 +41,8 @@ export function Rocket({ parts, idPrefix, size = "large", label }: RocketProps) 
     >
       <defs>
         <linearGradient id={gradient} x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0" style={{ stopColor: "var(--accent)" }} />
-          <stop offset="1" style={{ stopColor: "var(--accent-2)" }} />
+          <stop offset="0" className="rocket-stop-start" />
+          <stop offset="1" className="rocket-stop-end" />
         </linearGradient>
       </defs>
       {PART_KINDS.map((kind) => {

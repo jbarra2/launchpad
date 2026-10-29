@@ -11,11 +11,12 @@ vi.mock("next/navigation", () => ({
   }),
 }));
 
-const { getSessionUser, peekSessionUser, requireUser } = await import("./session");
+const { getApiKeyState, getSessionUser, peekSessionUser, requireUser } = await import("./session");
 const { ApiUnavailableError } = await import("./api");
 
 const fetchMock = vi.fn<typeof fetch>();
 const ana = { id: "u1", name: "Ana", email: "ana@example.com" };
+const noKey = { status: "none" } as const;
 
 function answer(status: number, body: unknown) {
   return new Response(JSON.stringify(body), { status });
@@ -27,6 +28,19 @@ beforeEach(() => {
   vi.stubGlobal("fetch", fetchMock);
 });
 
+describe("getApiKeyState", () => {
+  it("is what /api/me says about the key: a status and the last 4 characters at most", async () => {
+    const saved = { status: "valid", last4: "abcd", checkedAt: "2026-10-28T10:00:00.000Z" };
+    fetchMock.mockResolvedValue(answer(200, { user: ana, apiKey: { ...saved, key: "sk-ant-x" } }));
+    expect(await getApiKeyState()).toEqual(saved);
+  });
+
+  it("is none when nobody is signed in", async () => {
+    incoming.cookie = null;
+    expect(await getApiKeyState()).toEqual({ status: "none" });
+  });
+});
+
 describe("getSessionUser", () => {
   it("asks nobody when the browser sent no session cookie", async () => {
     incoming.cookie = "other=1";
@@ -35,7 +49,9 @@ describe("getSessionUser", () => {
   });
 
   it("returns the person from /api/me, and only the fields in the contract", async () => {
-    fetchMock.mockResolvedValue(answer(200, { user: { ...ana, passwordHash: "x" } }));
+    fetchMock.mockResolvedValue(
+      answer(200, { user: { ...ana, passwordHash: "x" }, apiKey: noKey }),
+    );
     expect(await getSessionUser()).toEqual(ana);
     expect(String(fetchMock.mock.calls[0]![0])).toBe("http://api.test:4100/api/me");
   });
@@ -60,7 +76,7 @@ describe("getSessionUser", () => {
 
 describe("requireUser", () => {
   it("returns the signed-in person", async () => {
-    fetchMock.mockResolvedValue(answer(200, { user: ana }));
+    fetchMock.mockResolvedValue(answer(200, { user: ana, apiKey: noKey }));
     expect(await requireUser("/pad")).toEqual(ana);
   });
 
@@ -82,7 +98,7 @@ describe("requireUser", () => {
 
 describe("peekSessionUser", () => {
   it("returns the signed-in person", async () => {
-    fetchMock.mockResolvedValue(answer(200, { user: ana }));
+    fetchMock.mockResolvedValue(answer(200, { user: ana, apiKey: noKey }));
     expect(await peekSessionUser()).toEqual(ana);
   });
 

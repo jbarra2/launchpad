@@ -7,8 +7,14 @@ const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../
 
 const REQUIRED = "is required (see .env.example)";
 
+/** True for exactly 32 bytes written in standard base64, as the command in .env.example makes. */
+function isCredentialKey(value: string): boolean {
+  const bytes = Buffer.from(value, "base64");
+  return bytes.length === 32 && bytes.toString("base64") === value;
+}
+
 // Each setting gets a plain message here, because a message written by hand never contains the
-// value that was refused. The Claude key settings come with the saved-key work.
+// value that was refused.
 const envSchema = z
   .object({
     NODE_ENV: z
@@ -56,10 +62,53 @@ const envSchema = z
       ),
     // Only the console exists for now. A real provider comes with hosting.
     MAIL_TRANSPORT: z.enum(["console"], { error: "must be console" }).default("console"),
+    // The key that encrypts every saved Claude key. Losing it means everyone re-enters their key.
+    CREDENTIAL_KEY: z.string({ error: REQUIRED }).refine(isCredentialKey, {
+      error: "must be 32 bytes written in base64 (.env.example has the command that makes one)",
+    }),
+    // Stored with each saved key, so a new CREDENTIAL_KEY can be brought in later.
+    CREDENTIAL_KEY_VERSION: z.coerce
+      .number({ error: "must be a number" })
+      .int({ error: "must be a whole number" })
+      .min(1, { error: "must be between 1 and 1000" })
+      .max(1000, { error: "must be between 1 and 1000" })
+      .default(1),
+    // How long one Claude call may take. The web app's proxy waits 30 seconds longer than this.
+    ANTHROPIC_TIMEOUT_MS: z.coerce
+      .number({ error: "must be a number of milliseconds" })
+      .int({ error: "must be a whole number of milliseconds" })
+      .min(1000, { error: "must be between 1000 and 600000" })
+      .max(600_000, { error: "must be between 1000 and 600000" })
+      .default(90_000),
+    // Only for the end-to-end tests, which answer for Anthropic from a local server. Every saved key
+    // is sent to this address, so production refuses it.
+    ANTHROPIC_BASE_URL: z
+      .url({ protocol: /^https?$/, error: "must be an http or https address" })
+      .optional(),
+    // Anthropic's SDK adds these headers to every call, after the person's own key, so one of them
+    // could swap every key for another. The app never needs it.
+    ANTHROPIC_CUSTOM_HEADERS: z
+      .undefined({ error: "must not be set: it would add headers to every Claude call" })
+      .optional(),
   })
   .superRefine((value, ctx) => {
+    // One secret doing two jobs means one leak opens both the sessions and the saved keys.
+    if (value.CREDENTIAL_KEY === value.BETTER_AUTH_SECRET) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["CREDENTIAL_KEY"],
+        message: "must not be the same as BETTER_AUTH_SECRET",
+      });
+    }
     if (value.NODE_ENV !== "production") {
       return;
+    }
+    if (value.ANTHROPIC_BASE_URL !== undefined) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["ANTHROPIC_BASE_URL"],
+        message: "cannot be set in production, because every saved key would be sent there",
+      });
     }
     if (!value.BETTER_AUTH_URL.startsWith("https://")) {
       ctx.addIssue({

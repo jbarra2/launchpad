@@ -9,12 +9,13 @@ describe("GET /api/me", () => {
     expect(response.body).toEqual({ error: "Sign in to continue." });
   });
 
-  it("answers with the signed-in person and nothing else", async () => {
+  it("answers with the signed-in person, whether they have a Claude key, and nothing else", async () => {
     const { cookie, userId } = await createVerifiedUser("ana@example.com", "Ana");
     const response = await get("/api/me", { cookie });
     expect(response.status).toBe(200);
     expect(response.body).toEqual({
       user: { id: userId, name: "Ana", email: "ana@example.com" },
+      apiKey: { status: "none" },
     });
     expect(JSON.stringify(response.body)).not.toMatch(/password|token|hash/i);
   });

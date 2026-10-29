@@ -7,8 +7,13 @@ interface ConfirmDialogProps {
   /** The words on the button that opens the dialog. */
   trigger: ReactNode;
   title: string;
-  /** What will happen, and any field the action needs. */
-  children: ReactNode;
+  /**
+   * What will happen. It is the dialog's description, so a screen reader reads it out when the
+   * dialog opens, wherever focus lands.
+   */
+  description: ReactNode;
+  /** Any field the action needs. It stays out of the description. */
+  children?: ReactNode;
   confirmLabel: string;
   busyLabel: string;
   danger?: boolean;
@@ -27,6 +32,7 @@ interface ConfirmDialogProps {
 export function ConfirmDialog({
   trigger,
   title,
+  description,
   children,
   confirmLabel,
   busyLabel,
@@ -38,6 +44,7 @@ export function ConfirmDialog({
   const [error, setError] = useState<string | null>(null);
   const pending = useRef(false);
   const titleId = useId();
+  const descriptionId = useId();
   // A page brought back by the Back button comes back as it was left: busy, with the dialog open.
   useResetWhenRestored(
     useCallback(() => {
@@ -91,10 +98,12 @@ export function ConfirmDialog({
         ref={dialog}
         className="dialog"
         aria-labelledby={titleId}
+        aria-describedby={descriptionId}
         onClose={() => setError(null)}
       >
         <form method="post" noValidate onSubmit={onSubmit}>
           <h2 id={titleId}>{title}</h2>
+          <div id={descriptionId}>{description}</div>
           {children}
           <p role="alert" className="inline-alert">
             {error}

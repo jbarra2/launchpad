@@ -16,6 +16,12 @@ export function DeleteAccount() {
       confirmLabel="Delete account"
       busyLabel="Deleting…"
       danger
+      description={
+        <p>
+          This deletes your account and every idea on your pad. It cannot be undone. Enter your
+          password to confirm.
+        </p>
+      }
       onConfirm={async (data) => {
         const parsed = deleteAccountBody.safeParse({ password: textOf(data, "password") });
         if (!parsed.success) {
@@ -30,10 +36,6 @@ export function DeleteAccount() {
         return authErrorMessage(result, "We could not delete your account. Try again.");
       }}
     >
-      <p>
-        This deletes your account and every idea on your pad. It cannot be undone. Enter your
-        password to confirm.
-      </p>
       <FormField label="Password">
         <input name="password" type="password" autoComplete="current-password" />
       </FormField>

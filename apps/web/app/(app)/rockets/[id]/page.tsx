@@ -9,23 +9,28 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Rocket } from "@/components/rocket";
 import { DeleteRocketButton, LaunchButton } from "@/components/rockets/rocket-actions";
+import { StartSessionButton } from "@/components/rockets/start-session-button";
 import { LocalDay } from "@/components/local-day";
 import { partsToGo, progressText } from "@/lib/format";
 import { getRocket } from "@/lib/rockets";
 import { pick, single } from "@/lib/search-params";
-import { requireUser } from "@/lib/session";
+import { getApiKeyState, requireUser } from "@/lib/session";
 
 export const metadata: Metadata = { title: "Idea" };
 
 const NOTICES: Record<string, string> = {
   created: "Your idea is on the pad, with its Engine. Add the Fuel tank next.",
   launched: "Launched. The idea is locked, and its plan is ready to download.",
+  ended: "The session has ended. Nothing was attached.",
 };
 
-function savedNotice(kind: string | undefined): string | undefined {
+function partNotice(kind: string | undefined, done: string): string | undefined {
   const parsed = partKindParam.safeParse(kind);
-  return parsed.success ? `The ${PART_INFO[parsed.data].name} is saved.` : undefined;
+  return parsed.success ? `The ${PART_INFO[parsed.data].name} is ${done}.` : undefined;
 }
+
+/** How the next part can be built with Claude: in the open session, a new one, or not yet. */
+type ChatState = "open" | "start" | "no-key" | "invalid-key";
 
 function PartItem({
   rocketId,
@@ -33,12 +38,14 @@ function PartItem({
   part,
   isNext,
   locked,
+  chat,
 }: {
   rocketId: string;
   kind: (typeof PART_KINDS)[number];
   part: PartResponse | undefined;
   isNext: boolean;
   locked: boolean;
+  chat: ChatState;
 }) {
   const { name, section } = PART_INFO[kind];
   const href = `/rockets/${rocketId}/parts/${kind}`;
@@ -68,9 +75,34 @@ function PartItem({
           )}
         </>
       ) : isNext && !locked ? (
-        <Link href={href} className="button-link">
-          Write it myself<span className="visually-hidden"> for the {name}</span>
-        </Link>
+        <div className="plan-next">
+          {chat === "open" ? (
+            <Link href={`/rockets/${rocketId}/session`} className="button-link">
+              Continue session<span className="visually-hidden"> for the {name}</span>
+            </Link>
+          ) : chat === "start" ? (
+            <StartSessionButton rocketId={rocketId} kind={kind} />
+          ) : null}
+          <Link
+            href={href}
+            className={
+              chat === "open" || chat === "start" ? "button-link button-secondary" : "button-link"
+            }
+          >
+            Write it myself<span className="visually-hidden"> for the {name}</span>
+          </Link>
+          {chat === "no-key" ? (
+            <p className="muted">
+              <Link href="/settings">Add a Claude key in Settings</Link> to build this part by
+              chatting with Claude.
+            </p>
+          ) : chat === "invalid-key" ? (
+            <p className="muted">
+              Your Claude key no longer works. <Link href="/settings">Replace it in Settings</Link>{" "}
+              to build this part with Claude.
+            </p>
+          ) : null}
+        </div>
       ) : null}
     </li>
   );
@@ -80,11 +112,23 @@ export default async function RocketPage({ params, searchParams }: PageProps<"/r
   const { id } = await params;
   await requireUser(`/rockets/${id}`);
   const query = await searchParams;
-  const notice = pick(NOTICES, single(query.notice)) ?? savedNotice(single(query.saved));
+  const notice =
+    pick(NOTICES, single(query.notice)) ??
+    partNotice(single(query.saved), "saved") ??
+    partNotice(single(query.attached), "attached");
   const rocket = await getRocket(id);
+  const apiKey = await getApiKeyState();
   const attached = rocket.parts.map((part) => part.kind);
   const launched = rocket.status === "launched";
   const next = nextPartKind(attached);
+  const chat: ChatState =
+    rocket.openSession?.part === next
+      ? "open"
+      : apiKey.status === "valid"
+        ? "start"
+        : apiKey.status === "invalid"
+          ? "invalid-key"
+          : "no-key";
 
   return (
     <>
@@ -152,6 +196,7 @@ export default async function RocketPage({ params, searchParams }: PageProps<"/r
                 part={rocket.parts.find((part) => part.kind === kind)}
                 isNext={kind === next}
                 locked={launched}
+                chat={chat}
               />
             ))}
           </ol>
